@@ -1,11 +1,11 @@
 {
-  "id": "root",
-  "title": "Oval",
-  "summary": "The bare starting point: one oval, one car, four racers, three laps.",
-  "parent": null,
-  "requestedBy": null,
-  "request": null,
-  "play": "https://liquid-racer.vercel.app/n/root",
+  "id": "ctfu46ft",
+  "title": "Fifth Racer",
+  "summary": "One more car joins the grid, so the oval now starts with five racers.",
+  "parent": "root",
+  "requestedBy": "lleyton",
+  "request": "Add a fifth racer to the grid so the pack is busier.",
+  "play": "https://liquid-racer.vercel.app/n/ctfu46ft",
   "gates": [
     {
       "id": "contract",
@@ -33,22 +33,33 @@
     },
     {
       "id": "close-racing",
-      "pass": false,
-      "value": 1.7,
-      "target": ">= 2 per race on average"
+      "pass": true,
+      "value": 2.2,
+      "target": ">= 2 per race on average, or no lower than the parent's 1.7"
     },
     {
       "id": "race-length",
       "pass": true,
-      "value": 54.3,
+      "value": 55.9,
       "target": "median winner time 20s to 180s, every race finishes"
     },
     {
       "id": "performance",
       "pass": true,
-      "value": 0.009,
+      "value": 0.008,
       "target": "<= 1 ms"
     }
   ],
-  "spec": null
+  "spec": {
+    "spec": "Increase the starting grid from four racers to five.\n- The new car gets its own colour from the style bible's accent colours (Tomato, Amber, Sky, Lilac, Mint, Rose). It must be distinct from the other four cars and from the player's car.\n- It starts on the grid in the next free slot behind the existing cars. All five cars must sit fully on the tarmac, with no overlaps at the start.\n- It drives and is controlled exactly like the other racers. Do not change bot behaviour, the HUD, the scoring or the gates.\n- Slipstream applies to the new car the same way as to the others.\n- Position display and finishing order must handle five racers correctly.\n- Out of scope: new mechanics, a wider track, and changes to lap count.",
+    "design": "# Design: Fifth Racer\n\nThis is a data-only change. There is no new mechanic, so I've kept it small.\n\n## 1. Mechanics\n- Set `TUNING.racers` from `4` to `5` in `game/tuning.ts`. `game/index.ts` already reads it for `Game.racers`, and the kernel builds one `RacerSetup` per racer.\n- **Grid:** don't change the formula in `init`. The existing two-wide stagger puts car index 4 in row 2 (the third row):\n  - idx = `wrap(-3 - 2*3 - 0, n)` = `-9`, which is 180 units behind the line.\n  - It sits on side `-1`, at lateral offset `0.4 * 92 = 36.8`.\n  - That is the same lane as cars 0 and 2.\n- **Tarmac:** lateral offset plus car radius is 36.8 + 15 = 51.8, which is under the half-width of 92. The straight runs about 500 units before the line, so row 2 is still on straight tarmac.\n- **Overlap:** the nearest neighbour is car 2, 60 units ahead in the same lane. That is more than the 30-unit collision diameter. The other cars are at least 20 units ahead and 73.6 units apart sideways, which is also clear. Nothing overlaps.\n- **Standings, `status`, `observe`:** no change. All of them loop over `s.cars`, and the collision key `i*8+j` is safe up to 8 cars.\n- **Slipstream:** `isDrafting` checks every other car, so the fifth car drafts and is drafted by default.\n- **Lap tracking:** a car at idx `n-9` starts at lap -1. The wrap to idx 0 at the line then counts as lap 0, the same as the other grid cars.\n\n## 2. On screen\n- `PALETTE.cars` is `[Tomato, Amber, Sky, Lilac, Mint, Rose, chalk, grey]`, and `render.ts` indexes it by car number. Car 4 is therefore **Mint `#7be0a4`**, which is distinct from the other four cars.\n- Cars 0 to 3 are Tomato, Amber, Sky and Lilac, so the player is a different colour whichever slot they take.\n- Don't edit the palette array or `render.ts`.\n- Name labels and drafting streaks already draw for every car. The HUD is kernel-drawn and unchanged.\n\n## 3. Bots\n- No change. Each bot already gets all four other cars in `rivals`, in the existing order, and its `ahead` points are unchanged. `actionReady` stays `false`, so the action is unused.\n- The fifth bot reacts to cars in front of it as the others do.\n\n## 4. Gates\n- **Gate 1 (beginner finishes):** low risk. The extra car is a few more bumps, and `bumpKeep` is only a small one-off speed loss. The last grid slot is on clear tarmac.\n- **Gate 2 (expert beats beginner):** low risk. More cars mean more traffic, which helps experts. In the mixed races the 5-car split is 2 or 3 experts, depending on seed.\n- **Gate 3 (lead changes):** more cars should add lead changes, not remove them. The parent-score fallback also applies.\n- Determinism holds because nothing random is added.\n- **Check:** run `sh check.sh`. If gate 1 or 2 fails marginally, report back to me. Don't touch bot or physics numbers without asking.\n\n## 5. Files\n- `game/tuning.ts`: `racers: 5`. That is the only edit.\n- `game/index.ts`, `game/render.ts`, `game/track.ts`: no change.\n- **Verification:** the Builder should confirm in a headless run that, right after `init` with 5 setups:\n  - cars sit at least 30 units apart (`2 * carRadius`);\n  - each car is within `halfWidth - carRadius` (77 units) of its centre-line point `track.points[idx]`;\n  - the five colours are distinct.\n\n  `check.sh` doesn't test these, so run a one-off script or temporary assert and then remove it.",
+    "acceptance": [
+      "The race starts with exactly five cars on the grid, each a different accent colour.",
+      "All five cars start on the tarmac with no overlap.",
+      "The fifth car races and finishes like the others, and the finishing order and position display correctly cover five places.",
+      "Slipstream works for the fifth car as it does for the others.",
+      "The same seed replays identically.",
+      "Lap count, HUD, scoring and bot behaviour are unchanged."
+    ]
+  }
 }

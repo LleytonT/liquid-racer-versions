@@ -1,6 +1,6 @@
 /** Every number that shapes how the race feels. Change values here first. */
 export const TUNING = {
-  racers: 4,
+  racers: 5,
   laps: 3,
   /** world units per second on a clear straight */
   topSpeed: 320,
@@ -12,7 +12,7 @@ export const TUNING = {
   /** steering rate at low speed, rad/s */
   maxYaw: 2.6,
   /** sideways grip, units/s^2. Corner speed limit is sqrt(grip * radius). */
-  grip: 200,
+  grip: 180,
   /** speed lost per second while asking for more turn than the tyres have */
   scrub: 90,
   /** top-speed multiplier on grass */
