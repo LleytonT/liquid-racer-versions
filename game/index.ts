@@ -27,6 +27,8 @@ export interface Car {
   finishTick: number | null;
   onGrass: boolean;
   drafting: boolean;
+  /** distance driven on grass, for the chalk tuft animation */
+  grassPhase: number;
 }
 
 export interface State {
@@ -64,6 +66,7 @@ function init(_seed: number, racers: RacerSetup[]): State {
       finishTick: null,
       onGrass: false,
       drafting: false,
+      grassPhase: 0,
     };
   });
   return { tick: 0, track, cars, touching: [] };
@@ -104,8 +107,10 @@ function step(s: State, inputs: Input[]): void {
     if (c.onGrass) top *= TUNING.grassTop;
     if (c.drafting) top *= 1 + TUNING.draftBonus;
 
-    c.speed += throttle * TUNING.accel * Math.max(0, 1 - c.speed / top) * DT;
-    if (c.speed > top) c.speed -= (c.speed - top) * 3 * DT;
+    const accel = TUNING.accel * (c.onGrass ? TUNING.grassAccel : 1);
+    c.speed += throttle * accel * Math.max(0, 1 - c.speed / top) * DT;
+    const bleed = c.onGrass ? TUNING.grassBleed : TUNING.overBleed;
+    if (c.speed > top) c.speed -= (c.speed - top) * bleed * DT;
     if (throttle === 0) c.speed -= c.speed * TUNING.coastDrag * DT;
     c.speed -= brake * TUNING.brake * DT;
 
@@ -115,6 +120,8 @@ function step(s: State, inputs: Input[]): void {
     const yaw = clamp(wanted, -limit, limit);
     if (Math.abs(wanted) > limit + 0.05) c.speed -= TUNING.scrub * DT;
     c.speed = Math.max(0, c.speed);
+
+    if (c.onGrass) c.grassPhase += c.speed * DT;
 
     c.heading += yaw * DT;
     c.x += Math.cos(c.heading) * c.speed * DT;

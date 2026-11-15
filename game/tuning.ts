@@ -16,7 +16,19 @@ export const TUNING = {
   /** speed lost per second while asking for more turn than the tyres have */
   scrub: 90,
   /** top-speed multiplier on grass */
-  grassTop: 0.4,
+  grassTop: 0.5,
+  /** acceleration multiplier on grass */
+  grassAccel: 0.5,
+  /** fraction of excess speed shed per second on grass */
+  grassBleed: 3.5,
+  /** fraction of excess speed shed per second on tarmac (e.g. after a draft) */
+  overBleed: 3,
+  /** chalk tufts behind a car on grass: spacing, stroke length, peak alpha */
+  tuftGap: 20,
+  tuftSize: 5,
+  tuftAlpha: 0.7,
+  /** tufts only show above this speed */
+  tuftMinSpeed: 15,
   carRadius: 15,
   /** slipstream: top-speed bonus when tucked in behind another car */
   draftBonus: 0.1,

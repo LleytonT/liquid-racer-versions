@@ -89,6 +89,27 @@ export function render(ctx: CanvasRenderingContext2D, s: State, view: View): voi
       }
     }
 
+    if (c.onGrass && c.speed > TUNING.tuftMinSpeed) {
+      // Chalk tufts kicked up from the felt: small Vs pointing at the car, streaming back.
+      const gap = TUNING.tuftGap;
+      const span = gap * 3;
+      const size = TUNING.tuftSize;
+      ctx.lineWidth = 2;
+      for (const lane of [-wid * 0.45, wid * 0.45]) {
+        for (let k = 0; k < 3; k++) {
+          const along = (((k * gap + c.grassPhase) % span) + span) % span;
+          const d = len * 0.6 + along;
+          const a = TUNING.tuftAlpha * (1 - along / span);
+          ctx.strokeStyle = `rgba(242,234,211,${a.toFixed(3)})`;
+          ctx.beginPath();
+          ctx.moveTo(-d - size, lane - size * 0.6);
+          ctx.lineTo(-d, lane);
+          ctx.lineTo(-d - size, lane + size * 0.6);
+          ctx.stroke();
+        }
+      }
+    }
+
     ctx.fillStyle = PALETTE.ink;
     ctx.fillRect(-len * 0.34, -wid * 0.62, len * 0.2, wid * 1.24);
     ctx.fillRect(len * 0.16, -wid * 0.62, len * 0.2, wid * 1.24);

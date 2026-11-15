@@ -1,11 +1,11 @@
 {
-  "id": "root",
-  "title": "Oval",
-  "summary": "The bare starting point: one oval, one car, four racers, three laps.",
-  "parent": null,
-  "requestedBy": null,
-  "request": null,
-  "play": "https://liquid-racer.vercel.app/n/root",
+  "id": "ga9h7tgt",
+  "title": "Slow Felt",
+  "summary": "Leave the tarmac and your car bogs down in the felt, so cutting corners costs you time.",
+  "parent": "root",
+  "requestedBy": "lleyton",
+  "request": "Make the grass much slower so cutting the corners is punished.",
+  "play": "https://liquid-racer.vercel.app/n/ga9h7tgt",
   "gates": [
     {
       "id": "contract",
@@ -33,22 +33,33 @@
     },
     {
       "id": "close-racing",
-      "pass": false,
-      "value": 1.7,
-      "target": ">= 2 per race on average"
+      "pass": true,
+      "value": 1.8,
+      "target": ">= 2 per race on average, or no lower than the parent's 1.7"
     },
     {
       "id": "race-length",
       "pass": true,
-      "value": 54.3,
+      "value": 54.4,
       "target": "median winner time 20s to 180s, every race finishes"
     },
     {
       "id": "performance",
       "pass": true,
-      "value": 0.009,
+      "value": 0.007,
       "target": "<= 1 ms"
     }
   ],
-  "spec": null
+  "spec": {
+    "spec": "Add a strong speed penalty for any car whose position is off the tarmac, on the felt. Applies equally to the player car and all bots.\n- While on felt, the car's top speed and acceleration drop sharply (roughly to 40–50% of normal top speed). The car can still steer and always recovers once back on tarmac, so a beginner can never get stuck.\n- The change is gradual enough to be readable: speed bleeds off over a fraction of a second rather than snapping.\n- Make it visible: while a car is on the felt, draw a few short dashed chalk streaks or small chalk tufts behind it (restrained, in chalk colour, no particles filling the screen). No HUD changes.\n- Bots keep their existing behaviour and scoring is unchanged; they are simply subject to the same physics.\n- Keep the simulation deterministic and cheap per tick.\nLeft out: no walls, no barriers, no sound, no new HUD elements, and no changes to bots or scoring.",
+    "design": "# Design: Slow Felt\n\n**Finding:** `game/index.ts` already has a crude version of this. `onGrass` is computed each tick, and `top *= TUNING.grassTop` (0.4) applies on grass. Acceleration is not reduced, there is no tuning for the bleed rate (a bare `3` in `step`), and nothing is drawn. The work is to tune that, finish it, and show it.\n\n## 1. Mechanics\nSame rule for every car, evaluated once per tick in `step`:\n- **Top speed on felt** is 45% of normal. `grassTop` goes from 0.4 to **0.45**, which is 144 against 320.\n- **Acceleration on felt** is 50% of normal. Add `grassAccel: 0.5`. In the throttle line, use `TUNING.accel * (c.onGrass ? TUNING.grassAccel : 1)`.\n- **Bleed rate:** add `grassBleed: 3.5` per second. When `speed > top`, use `c.speed -= (c.speed - top) * rate * DT`. `rate` is `grassBleed` on felt and `overBleed` otherwise. The excess halves in about 0.2 s, which is smooth but visible.\n- **`overBleed: 3`** replaces the existing literal `3`, so draft behaviour doesn't change.\n- **Steering and recovery:** steering is untouched. Grip authority is `grip / max(speed, 60)`, so a slow car can turn more sharply. Back on tarmac, `top` returns to normal at once and the car accelerates at full rate, so a car can't get stuck.\n- **Render phase:** add `grassPhase: number` to `Car`, initialised to 0. While `onGrass`, advance it with `c.grassPhase += c.speed * DT`. Don't reset it.\n- **Tuning:** put `grassTop`, `grassAccel`, `grassBleed`, `overBleed` and the render numbers in `TUNING` in `game/tuning.ts`.\n\n## 2. On screen\nChalk tufts trail behind any car with `onGrass` true and speed above 15.\n- **Shape:** each tuft is a small \"V\" of two 5-unit chalk strokes, with the point facing the car. Line width is 2 and the colour is chalk.\n- **Placement:** draw them in the car's local frame, after `rotate(heading)` and before the body, so they sit under it.\n- **Lanes:** two lanes at y = ±`wid*0.45`, three tufts per lane.\n- **Spacing:** the backward distance is `d = len*0.6 + ((k*gap + phase) mod (3*gap))` with `gap = 20`, so the tufts stream backward as the car moves.\n- **Fade:** alpha is `0.7*(1 - (d - len*0.6)/(3*gap))`, drawn as `rgba(242,234,211,a)`.\n- **Tuning keys:** add `tuftGap: 20`, `tuftSize: 5` and `tuftAlpha: 0.7` to `TUNING`.\n- **Disappear:** the tufts vanish the tick the car returns to tarmac, because they depend on `onGrass`.\n- **Not the draft streaks:** these differ from the draft streaks, which are three straight lines on tarmac only.\n- **No HUD changes.**\n\n## 3. Bots\n- **`ahead`:** unchanged. The centre line is the fastest safe path.\n- **`topSpeed`:** stays nominal at 320, as the API says.\n- **`rivals`:** unchanged.\n- **`actionReady`:** stays false.\n- **Behaviour on felt:** `speed` falls below `desired`, so bots keep full throttle and steer back toward `ahead`. No bot code changes.\n\n## 4. Gates\n- **Gate 1 (beginner finishes):** this is the main risk. Beginners wander (0.28) and react 12 ticks late, and a cornering error now costs more. Recovery is guaranteed, and the slower car steers tighter. The felt cap is 45% rather than something harsher. If beginners drop below 90%, raise `grassTop` to 0.5 or `grassAccel` to 0.6 before changing anything else.\n- **Gate 2 (expert beats beginner):** this improves. The penalty is a skill tax, because experts stay on tarmac and beginners drift off it.\n- **Gate 3 (lead changes):** neutral to slightly positive. A leader's mistake costs time on felt, and it applies to anyone who errs, not only the leader. Run `sh check.sh` and compare against the parent.\n- **Median time:** should stay in the 20–180 s window.\n- **Cost:** no extra work per tick, only one multiply and one add per car.\n- **Determinism:** no RNG is used.\n\n## 5. Files\n- **`game/tuning.ts`:** `grassTop` 0.45, plus the new `grassAccel`, `grassBleed`, `overBleed`, `tuftGap`, `tuftSize` and `tuftAlpha`.\n- **`game/index.ts`:** `grassPhase` on `Car` and in `init`. In `step`, the accel multiplier, the bleed rate and the phase update.\n- **`game/render.ts`:** the tuft drawing, as described in section 2.\n\nNo changes to `kernel/`, scoring, or the `Observation` fields.",
+    "acceptance": [
+      "A car driving on the felt reaches a clearly lower top speed (about half) than the same car on tarmac.",
+      "Cutting a corner across the felt is measurably slower than following the track for equal bots, in a headless run.",
+      "A car that leaves the track can always steer back onto tarmac and recover full speed.",
+      "A visible chalk marking appears behind any car while it is on the felt and disappears when it returns to tarmac.",
+      "The node replays identically from the same seed and still passes the beginner-finish gate (at least 90% of beginner bots finish).",
+      "No HUD elements, bots logic, or scoring are changed."
+    ]
+  }
 }
