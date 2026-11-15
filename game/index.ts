@@ -10,7 +10,7 @@ import {
   type Vec,
 } from "../kernel/api";
 import { render } from "./render";
-import { buildTrack, headingAt, nearestIndex, onPad, wrap, type Track } from "./track";
+import { buildTrack, headingAt, nearestIndex, onKerb, onPad, wrap, type Track } from "./track";
 import { TUNING } from "./tuning";
 
 export interface Car {
@@ -29,6 +29,8 @@ export interface Car {
   drafting: boolean;
   /** ticks of boost-pad burst left; 0 when not boosted */
   boost: number;
+  /** true while the car's body is over an inside kerb */
+  kerb: boolean;
 }
 
 export interface State {
@@ -67,6 +69,7 @@ function init(_seed: number, racers: RacerSetup[]): State {
       onGrass: false,
       drafting: false,
       boost: 0,
+      kerb: false,
     };
   });
   return { tick: 0, track, cars, touching: [] };
@@ -100,7 +103,9 @@ function step(s: State, inputs: Input[]): void {
     const brake = done ? 0.4 : clamp(raw?.brake ?? 0, 0, 1);
 
     const centre = track.points[c.idx];
-    c.onGrass = Math.hypot(c.x - centre.x, c.y - centre.y) > track.halfWidth;
+    // The kerb runs over the inner edge, so a car on it is on the kerb, not the grass.
+    c.kerb = onKerb(c.x, c.y);
+    c.onGrass = !c.kerb && Math.hypot(c.x - centre.x, c.y - centre.y) > track.halfWidth;
     c.drafting = !c.onGrass && isDrafting(s, c);
 
     const padded = onPad(track, c.x, c.y);
@@ -123,6 +128,8 @@ function step(s: State, inputs: Input[]): void {
     const limit = TUNING.grip / Math.max(c.speed, 60);
     const yaw = clamp(wanted, -limit, limit);
     if (Math.abs(wanted) > limit + 0.05) c.speed -= TUNING.scrub * DT;
+    // Kerbs bleed a fraction of speed, so they slow a car but never stop it.
+    if (c.kerb) c.speed -= c.speed * TUNING.kerbDrag * DT;
     c.speed = Math.max(0, c.speed);
 
     c.heading += yaw * DT;

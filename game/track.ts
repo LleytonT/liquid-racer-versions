@@ -95,3 +95,14 @@ export function onPad(track: Track, x: number, y: number): boolean {
   }
   return false;
 }
+
+/** True when (x, y) lies over the inside kerb of either turn. */
+export function onKerb(x: number, y: number): boolean {
+  const half = TRACK.straight / 2;
+  const ri = TRACK.radius - TRACK.halfWidth;
+  // Fold the left turn onto the right one: the oval is symmetric in x.
+  const ax = Math.abs(x);
+  if (ax < half - TRACK.kerbLead) return false;
+  const q = ax >= half ? Math.hypot(ax - half, y) : Math.abs(y);
+  return q >= ri - TRACK.kerbOver && q <= ri + TRACK.kerbWidth + TRACK.kerbBody;
+}

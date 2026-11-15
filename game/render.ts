@@ -55,6 +55,30 @@ export function render(ctx: CanvasRenderingContext2D, s: State, view: View): voi
   ctx.stroke();
   ctx.setLineDash([]);
 
+  // Inside kerbs: Tomato and Chalk stripes along the inner edge of each turn.
+  const kerbHalf = TRACK.straight / 2;
+  const kerbR = TRACK.radius - halfWidth + (TRACK.kerbWidth - TRACK.kerbOver) / 2;
+  const kerbLead = TRACK.kerbLead;
+  const kerb = (side: number) => {
+    ctx.beginPath();
+    ctx.moveTo(side * (kerbHalf - kerbLead), -side * kerbR);
+    ctx.lineTo(side * kerbHalf, -side * kerbR);
+    if (side > 0) ctx.arc(kerbHalf, 0, kerbR, -Math.PI / 2, Math.PI / 2, false);
+    else ctx.arc(-kerbHalf, 0, kerbR, Math.PI / 2, (3 * Math.PI) / 2, false);
+    ctx.lineTo(side * (kerbHalf - kerbLead), side * kerbR);
+  };
+  ctx.lineCap = "butt";
+  ctx.lineWidth = TRACK.kerbWidth + TRACK.kerbOver;
+  for (const side of [1, -1]) {
+    kerb(side);
+    ctx.strokeStyle = PALETTE.tomato;
+    ctx.stroke();
+    ctx.setLineDash([TRACK.kerbStripe, TRACK.kerbStripe]);
+    ctx.strokeStyle = PALETTE.chalk;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
   // Braking marks: short dashed chalk bars across the back straight before the chicane.
   const markR = TRACK.radius;
   ctx.setLineDash([14, 10]);

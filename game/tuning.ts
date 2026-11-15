@@ -31,6 +31,8 @@ export const TUNING = {
   boostTop: 0.1,
   /** acceleration multiplier while boosted */
   boostAccel: 2.5,
+  /** kerb: fraction of speed lost per second while a car's body is over a kerb */
+  kerbDrag: 0.08,
 };
 
 export const TRACK = {
@@ -56,6 +58,16 @@ export const TRACK = {
   brakeMarks: 3,
   brakeMarkStart: 60,
   brakeMarkGap: 50,
+  /** inside kerbs on both turns: band width from the inner edge */
+  kerbWidth: 24,
+  /** extra reach so a car counts as on the kerb once its body is over it */
+  kerbBody: 10,
+  /** how far each kerb reaches past the inner tarmac edge; a car there is on the kerb, not the grass */
+  kerbOver: 24,
+  /** how far each kerb runs onto the straights before and after its turn */
+  kerbLead: 120,
+  /** length of each Tomato and Chalk stripe */
+  kerbStripe: 30,
 };
 
 /** The style bible's palette. Do not introduce colours outside it. */
@@ -66,5 +78,6 @@ export const PALETTE = {
   chalk: "#f2ead3",
   ink: "#17201b",
   amber: "#ffc233",
+  tomato: "#ff5a3c",
   cars: ["#ff5a3c", "#ffc233", "#3fb8ff", "#b59cff", "#7be0a4", "#ff8fc7", "#f2ead3", "#9aa3ad"],
 };
