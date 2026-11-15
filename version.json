@@ -1,11 +1,11 @@
 {
-  "id": "root",
-  "title": "Oval",
-  "summary": "The bare starting point: one oval, one car, four racers, three laps.",
-  "parent": null,
-  "requestedBy": null,
-  "request": null,
-  "play": "https://liquid-racer.vercel.app/n/root",
+  "id": "hh3gy9mr",
+  "title": "Five Lap Oval",
+  "summary": "The race now runs five laps, which gives more time to fight for the lead.",
+  "parent": "root",
+  "requestedBy": "lleyton",
+  "request": "Make the race four laps instead of three.",
+  "play": "https://liquid-racer.vercel.app/n/hh3gy9mr",
   "gates": [
     {
       "id": "contract",
@@ -33,22 +33,33 @@
     },
     {
       "id": "close-racing",
-      "pass": false,
+      "pass": true,
       "value": 1.7,
-      "target": ">= 2 per race on average"
+      "target": ">= 2 per race on average, or no lower than the parent's 1.7"
     },
     {
       "id": "race-length",
       "pass": true,
-      "value": 54.3,
+      "value": 89.4,
       "target": "median winner time 20s to 180s, every race finishes"
     },
     {
       "id": "performance",
       "pass": true,
-      "value": 0.009,
+      "value": 0.008,
       "target": "<= 1 ms"
     }
   ],
-  "spec": null
+  "spec": {
+    "spec": "Change the race length on the Oval to five laps. This replaces the earlier four-lap version. Nothing else changes: same track, same car, same four racers, same slipstream. The finish condition, the kernel's lap counter and the results all use five laps. The median race must stay between 20 and 180 seconds. If five laps pushes the median close to the upper limit, make no other change and report it.",
+    "design": "**Design: Four Lap Oval.** This is a one-number change. `TUNING.laps` goes from 3 to 4 and nothing else moves.\n\n**1. Mechanics**\n- In `game/tuning.ts`, set `laps: 4`. The old value was `laps: 3`.\n- Every use of the lap count already reads `TUNING.laps`, so no other code needs to change:\n  - Finish: `step` in `game/index.ts` sets `finishTick` when `c.lap >= TUNING.laps`. Cars start at `lap = -1` behind the line, so this means four full laps after crossing the line.\n  - Observation: `observe` gives `laps: TUNING.laps` and clamps `progress` to 0–4. The kernel's lap display therefore counts up to 4 and never shows a lap 5.\n  - Finished cars: they are held at `throttle = 0` with a braking factor of 0.4, so no racer runs past four laps.\n- No new tunables. Track, car handling, racer count (4) and slipstream (`draftBonus`, `draftMin`, `draftMax`, `draftCone`) stay as they are.\n\n**2. On screen**\n- Nothing changes. The kernel draws the lap, position and timer, and the style bible says a node must not redraw them.\n- `render.ts` has no lap-count literals. A grep found only pixel sizes.\n\n**3. Bots**\n- The bots see `laps: 4` and `progress` up to 4.\n- `ahead`, `rivals` and `actionReady` stay as they are (`actionReady: false`).\n\n**4. Gates**\n- **Race time:**\n  - One lap is about 5,190 units (2×1400 straights plus 2π×380 of turns). I estimated about 18–20 s per lap from the track length and top speed. I did not run the race to check.\n  - That puts three laps near 55–60 s and four laps near 75–80 s. This is well inside 20–180 s and nowhere near the upper limit.\n  - If the harness median comes out above about 150 s, make no other change and report it to me. I don't expect that.\n- **Gate 1 (beginner finishes):** this is low risk. A longer race gives beginners more time to hit grass or bumps, but they were finishing at three laps and the track hasn't changed. The Builder should check the finish rate is still at least 90%.\n- **Gate 2 (expert beats beginner):** a longer race gives skill more time to show, so this should improve slightly.\n- **Gate 3 (lead changes):** the lead has more time to swap, so this should hold or improve. The node must be no worse than its parent. Compare against the three-lap number, and don't tune anything to chase it.\n- **Determinism:** nothing random is added, so the same seed replays identically.\n\n**5. Files**\n- `game/tuning.ts`: change `laps: 3` to `laps: 4`.\n- All other files are untouched. That includes `index.ts`, `render.ts`, `track.ts` and `kernel/`.\n- Run `sh check.sh` and report the median race time and the gate lines.",
+    "acceptance": [
+      "A race ends when the leading racer completes five laps, not three or four.",
+      "The kernel's lap display counts up to 5 and does not show a lap 6.",
+      "Every racer who finishes has completed exactly five laps.",
+      "The same seed replays identically.",
+      "The median headless race time is between 20 and 180 seconds.",
+      "The track, car handling, racer count and slipstream are unchanged."
+    ]
+  }
 }

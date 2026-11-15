@@ -1,7 +1,7 @@
 /** Every number that shapes how the race feels. Change values here first. */
 export const TUNING = {
   racers: 4,
-  laps: 3,
+  laps: 5,
   /** world units per second on a clear straight */
   topSpeed: 320,
   /** throttle acceleration at standstill, units/s^2 */
