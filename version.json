@@ -1,0 +1,54 @@
+{
+  "id": "root",
+  "title": "Oval",
+  "summary": "The bare starting point: one oval, one car, four racers, three laps.",
+  "parent": null,
+  "requestedBy": null,
+  "request": null,
+  "play": "https://liquid-racer.vercel.app/n/root",
+  "gates": [
+    {
+      "id": "contract",
+      "pass": true,
+      "value": "ok",
+      "target": "default export satisfies Game, 2 to 8 racers"
+    },
+    {
+      "id": "determinism",
+      "pass": true,
+      "value": "identical",
+      "target": "identical"
+    },
+    {
+      "id": "beginner-finishes",
+      "pass": true,
+      "value": 1,
+      "target": ">= 0.9 of beginner bots finish"
+    },
+    {
+      "id": "skill-matters",
+      "pass": true,
+      "value": 1,
+      "target": ">= 0.8 of mixed races won by an expert"
+    },
+    {
+      "id": "close-racing",
+      "pass": false,
+      "value": 1.7,
+      "target": ">= 2 per race on average"
+    },
+    {
+      "id": "race-length",
+      "pass": true,
+      "value": 54.3,
+      "target": "median winner time 20s to 180s, every race finishes"
+    },
+    {
+      "id": "performance",
+      "pass": true,
+      "value": 0.009,
+      "target": "<= 1 ms"
+    }
+  ],
+  "spec": null
+}
