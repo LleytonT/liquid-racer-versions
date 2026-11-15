@@ -31,6 +31,22 @@ export const TUNING = {
   boostTop: 0.1,
   /** acceleration multiplier while boosted */
   boostAccel: 2.5,
+  /** ice beam: range in world units, about 3.7 car lengths */
+  iceRange: 140,
+  /** ice beam: half-angle of the cone ahead of the shooter, rad */
+  iceCone: 0.3,
+  /** top-speed multiplier while chilled */
+  iceSlow: 0.7,
+  /** ticks a chill lasts after the last hit */
+  iceTicks: 30,
+  /** ticks before a shooter can fire again */
+  iceCooldown: 24,
+  /** rate per second at which speed bleeds down to the chilled cap */
+  iceBleed: 20,
+  /** ticks a beam stays drawn */
+  iceShow: 10,
+  /** chill outline fades over this many final ticks */
+  iceFade: 10,
 };
 
 export const TRACK = {
@@ -66,5 +82,6 @@ export const PALETTE = {
   chalk: "#f2ead3",
   ink: "#17201b",
   amber: "#ffc233",
+  sky: "#3fb8ff",
   cars: ["#ff5a3c", "#ffc233", "#3fb8ff", "#b59cff", "#7be0a4", "#ff8fc7", "#f2ead3", "#9aa3ad"],
 };

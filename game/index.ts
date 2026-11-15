@@ -29,6 +29,14 @@ export interface Car {
   drafting: boolean;
   /** ticks of boost-pad burst left; 0 when not boosted */
   boost: number;
+  /** ticks of ice-beam chill left; 0 when not chilled */
+  chill: number;
+  /** ticks until this car's ice beam can fire again */
+  cooldown: number;
+  /** index of the car last hit by this car's beam, or -1 */
+  beamTo: number;
+  /** ticks the last beam stays drawn */
+  beamTicks: number;
 }
 
 export interface State {
@@ -67,6 +75,10 @@ function init(_seed: number, racers: RacerSetup[]): State {
       onGrass: false,
       drafting: false,
       boost: 0,
+      chill: 0,
+      cooldown: 0,
+      beamTo: -1,
+      beamTicks: 0,
     };
   });
   return { tick: 0, track, cars, touching: [] };
@@ -84,6 +96,48 @@ function isDrafting(s: State, c: Car): boolean {
     return true;
   }
   return false;
+}
+
+/** Each ready car chills the nearest car in a short cone ahead. Hits are decided first, then applied. */
+function fireBeams(s: State): void {
+  for (const c of s.cars) {
+    if (c.chill > 0) c.chill--;
+    if (c.cooldown > 0) c.cooldown--;
+    if (c.beamTicks > 0) c.beamTicks--;
+  }
+  const hits: [number, number][] = [];
+  for (let i = 0; i < s.cars.length; i++) {
+    const c = s.cars[i];
+    if (c.cooldown > 0 || c.finishTick != null) continue;
+    const ch = Math.cos(c.heading);
+    const sh = Math.sin(c.heading);
+    let best = -1;
+    let bestD = Infinity;
+    for (let j = 0; j < s.cars.length; j++) {
+      const o = s.cars[j];
+      if (j === i || o.finishTick != null) continue;
+      const dx = o.x - c.x;
+      const dy = o.y - c.y;
+      // Only cars in front can be hit, so nobody shoots backward.
+      if (dx * ch + dy * sh <= 0) continue;
+      const d = Math.hypot(dx, dy);
+      if (d > TUNING.iceRange) continue;
+      if (Math.abs(angleDiff(Math.atan2(dy, dx), c.heading)) > TUNING.iceCone) continue;
+      if (d < bestD) {
+        bestD = d;
+        best = j;
+      }
+    }
+    if (best >= 0) hits.push([i, best]);
+  }
+  for (const [i, j] of hits) {
+    // Setting, not adding, so chills never stack or outlast the last hit.
+    s.cars[j].chill = TUNING.iceTicks;
+    const c = s.cars[i];
+    c.cooldown = TUNING.iceCooldown;
+    c.beamTo = j;
+    c.beamTicks = TUNING.iceShow;
+  }
 }
 
 function step(s: State, inputs: Input[]): void {
@@ -111,10 +165,12 @@ function step(s: State, inputs: Input[]): void {
     if (c.onGrass) top *= TUNING.grassTop;
     // Boost and slipstream do not stack: take the larger bonus.
     top *= 1 + Math.max(c.drafting ? TUNING.draftBonus : 0, boosted ? TUNING.boostTop : 0);
+    if (c.chill > 0) top *= TUNING.iceSlow;
     const accel = TUNING.accel * (boosted ? TUNING.boostAccel : 1);
 
     c.speed += throttle * accel * Math.max(0, 1 - c.speed / top) * DT;
-    if (c.speed > top) c.speed -= (c.speed - top) * 3 * DT;
+    const bleed = c.chill > 0 ? TUNING.iceBleed : 3;
+    if (c.speed > top) c.speed -= (c.speed - top) * bleed * DT;
     if (throttle === 0) c.speed -= c.speed * TUNING.coastDrag * DT;
     c.speed -= brake * TUNING.brake * DT;
 
@@ -160,6 +216,7 @@ function step(s: State, inputs: Input[]): void {
   }
 
   s.touching = touchingNow;
+  fireBeams(s);
 
   for (const c of s.cars) {
     const before = c.idx;

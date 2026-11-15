@@ -111,6 +111,29 @@ export function render(ctx: CanvasRenderingContext2D, s: State, view: View): voi
   }
   ctx.restore();
 
+  // Ice beams: short Sky chalk dashes from the shooter's nose to the target's edge.
+  const carLen = TUNING.carRadius * 2.5;
+  ctx.setLineDash([10, 8]);
+  ctx.strokeStyle = PALETTE.sky;
+  ctx.lineWidth = 3;
+  for (const c of s.cars) {
+    const t = s.cars[c.beamTo];
+    if (c.beamTicks <= 0 || !t) continue;
+    const dx = t.x - c.x;
+    const dy = t.y - c.y;
+    const d = Math.hypot(dx, dy);
+    const from = carLen * 0.6;
+    const to = d - TUNING.carRadius;
+    if (to <= from) continue;
+    ctx.globalAlpha = c.beamTicks / TUNING.iceShow;
+    ctx.beginPath();
+    ctx.moveTo(c.x + (dx / d) * from, c.y + (dy / d) * from);
+    ctx.lineTo(c.x + (dx / d) * to, c.y + (dy / d) * to);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.setLineDash([]);
+
   s.cars.forEach((c, i) => {
     ctx.save();
     ctx.translate(c.x, c.y);
@@ -149,6 +172,27 @@ export function render(ctx: CanvasRenderingContext2D, s: State, view: View): voi
     ctx.beginPath();
     ctx.roundRect(-len / 2, -wid / 2, len, wid, 6);
     ctx.fill();
+
+    // Chilled: a Sky dashed outline and three tick marks each side, fading out at the end.
+    if (c.chill > 0) {
+      ctx.globalAlpha = Math.min(1, c.chill / TUNING.iceFade);
+      ctx.strokeStyle = PALETTE.sky;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.roundRect(-len / 2 - 4, -wid / 2 - 4, len + 8, wid + 8, 8);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      for (const side of [-1, 1]) {
+        for (const tx of [-len * 0.3, 0, len * 0.3]) {
+          ctx.beginPath();
+          ctx.moveTo(tx, side * (wid / 2 + 7));
+          ctx.lineTo(tx, side * (wid / 2 + 13));
+          ctx.stroke();
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
 
     ctx.fillStyle = PALETTE.ink;
     ctx.beginPath();
