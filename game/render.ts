@@ -55,6 +55,20 @@ export function render(ctx: CanvasRenderingContext2D, s: State, view: View): voi
   ctx.stroke();
   ctx.setLineDash([]);
 
+  // Braking marks: short dashed chalk bars across the back straight before the chicane.
+  const markR = TRACK.radius;
+  ctx.setLineDash([14, 10]);
+  ctx.strokeStyle = "rgba(242,234,211,0.55)";
+  ctx.lineWidth = 4;
+  for (let k = 0; k < TRACK.brakeMarks; k++) {
+    const mx = TRACK.chicaneCentre + TRACK.chicaneLength / 2 + TRACK.brakeMarkStart + k * TRACK.brakeMarkGap;
+    ctx.beginPath();
+    ctx.moveTo(mx, markR - 0.6 * halfWidth);
+    ctx.lineTo(mx, markR + 0.6 * halfWidth);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
   // Boost pads: amber rectangles with a dashed chalk outline and ink chevrons.
   for (const pad of s.track.pads) {
     const pl = TRACK.padLength;

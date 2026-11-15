@@ -47,6 +47,15 @@ export const TRACK = {
   padWidth: 150,
   /** pad centre offset from the middle of the straight, in the driving direction */
   padOffset: 375,
+  /** back-straight chicane: centre x, span along the straight, sideways amplitude */
+  chicaneCentre: 0,
+  /** padOffset + padLength/2 must stay below chicaneLength/2 so no pad sits inside the chicane */
+  chicaneLength: 600,
+  chicaneAmp: 35,
+  /** dashed chalk braking marks upstream of the chicane */
+  brakeMarks: 3,
+  brakeMarkStart: 60,
+  brakeMarkGap: 50,
 };
 
 /** The style bible's palette. Do not introduce colours outside it. */

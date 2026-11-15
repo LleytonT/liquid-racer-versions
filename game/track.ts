@@ -29,7 +29,17 @@ export function buildTrack(): Track {
     const a = -Math.PI / 2 + (Math.PI * i) / arcSteps;
     pts.push({ x: L / 2 + R * Math.cos(a), y: R * Math.sin(a) });
   }
-  for (let i = 0; i < straightSteps; i++) pts.push({ x: L / 2 - (L * i) / straightSteps, y: R });
+  // Back straight, with a gentle S-bend chicane around chicaneCentre.
+  const { chicaneCentre: cc, chicaneLength: cl, chicaneAmp: ca } = TRACK;
+  for (let i = 0; i < straightSteps; i++) {
+    const x = L / 2 - (L * i) / straightSteps;
+    let y = R;
+    if (Math.abs(x - cc) <= cl / 2) {
+      const u = (cl / 2 - (x - cc)) / cl;
+      y += ca * Math.sin(2 * Math.PI * u) * Math.sin(Math.PI * u);
+    }
+    pts.push({ x, y });
+  }
   for (let i = 0; i < arcSteps; i++) {
     const a = Math.PI / 2 + (Math.PI * i) / arcSteps;
     pts.push({ x: -L / 2 + R * Math.cos(a), y: R * Math.sin(a) });
