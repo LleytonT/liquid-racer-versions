@@ -6,6 +6,15 @@ export interface Track {
   points: Vec[];
   halfWidth: number;
   length: number;
+  /** boost pads, one per straight */
+  pads: Pad[];
+}
+
+/** A flat boost pad centred at (x, y), facing the driving direction. */
+export interface Pad {
+  x: number;
+  y: number;
+  heading: number;
 }
 
 /** A stadium oval: two straights joined by two half-circles. */
@@ -29,7 +38,11 @@ export function buildTrack(): Track {
   // Start the lap a little way down the top straight.
   const shift = Math.round(straightSteps * 0.35);
   const points = pts.slice(shift).concat(pts.slice(0, shift));
-  return { points, halfWidth: TRACK.halfWidth, length: 2 * L + 2 * Math.PI * R };
+  const pads: Pad[] = [
+    { x: TRACK.padOffset, y: -R, heading: 0 },
+    { x: -TRACK.padOffset, y: R, heading: Math.PI },
+  ];
+  return { points, halfWidth: TRACK.halfWidth, length: 2 * L + 2 * Math.PI * R, pads };
 }
 
 export function wrap(i: number, n: number): number {
@@ -59,4 +72,16 @@ export function headingAt(track: Track, i: number): number {
   const a = track.points[wrap(i, n)];
   const b = track.points[wrap(i + 1, n)];
   return Math.atan2(b.y - a.y, b.x - a.x);
+}
+
+/** True when (x, y) lies inside any boost pad rectangle. */
+export function onPad(track: Track, x: number, y: number): boolean {
+  for (const p of track.pads) {
+    const dx = x - p.x;
+    const dy = y - p.y;
+    const along = dx * Math.cos(p.heading) + dy * Math.sin(p.heading);
+    const lateral = -dx * Math.sin(p.heading) + dy * Math.cos(p.heading);
+    if (Math.abs(along) <= TRACK.padLength / 2 && Math.abs(lateral) <= TRACK.padWidth / 2) return true;
+  }
+  return false;
 }

@@ -1,7 +1,7 @@
 import type { View } from "../kernel/api";
 import type { State } from "./index";
 import { headingAt } from "./track";
-import { PALETTE, TUNING } from "./tuning";
+import { PALETTE, TRACK, TUNING } from "./tuning";
 
 /** World units visible across the canvas width. */
 const VIEW_WIDTH = 1100;
@@ -55,6 +55,32 @@ export function render(ctx: CanvasRenderingContext2D, s: State, view: View): voi
   ctx.stroke();
   ctx.setLineDash([]);
 
+  // Boost pads: amber rectangles with a dashed chalk outline and ink chevrons.
+  for (const pad of s.track.pads) {
+    const pl = TRACK.padLength;
+    const pw = TRACK.padWidth;
+    ctx.save();
+    ctx.translate(pad.x, pad.y);
+    ctx.rotate(pad.heading);
+    ctx.fillStyle = PALETTE.amber;
+    ctx.fillRect(-pl / 2, -pw / 2, pl, pw);
+    ctx.setLineDash([10, 6]);
+    ctx.strokeStyle = PALETTE.chalk;
+    ctx.lineWidth = 4;
+    ctx.strokeRect(-pl / 2, -pw / 2, pl, pw);
+    ctx.setLineDash([]);
+    ctx.strokeStyle = PALETTE.ink;
+    ctx.lineWidth = 6;
+    for (const cx of [-pl * 0.25, 0, pl * 0.25]) {
+      ctx.beginPath();
+      ctx.moveTo(cx - pl * 0.1, -pw * 0.25);
+      ctx.lineTo(cx + pl * 0.1, 0);
+      ctx.lineTo(cx - pl * 0.1, pw * 0.25);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   // Start/finish: a chalk checker strip across the track at index 0.
   const p0 = points[0];
   const h0 = headingAt(s.track, 0);
@@ -85,6 +111,18 @@ export function render(ctx: CanvasRenderingContext2D, s: State, view: View): voi
         ctx.beginPath();
         ctx.moveTo(-len * 0.7, off);
         ctx.lineTo(-len * 1.5, off);
+        ctx.stroke();
+      }
+    }
+
+    if (c.boost > 0) {
+      const fade = Math.min(1, c.boost / 20);
+      ctx.strokeStyle = PALETTE.amber;
+      ctx.lineWidth = 3;
+      for (const off of [-wid * 0.5, 0, wid * 0.5]) {
+        ctx.beginPath();
+        ctx.moveTo(-len * 0.7, off);
+        ctx.lineTo(-len * (0.7 + 1.3 * fade), off);
         ctx.stroke();
       }
     }

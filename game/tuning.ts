@@ -25,6 +25,12 @@ export const TUNING = {
   draftCone: 0.35,
   /** speed kept by each car after a bump */
   bumpKeep: 0.94,
+  /** boost pad: ticks a burst lasts after leaving a pad */
+  boostTicks: 50,
+  /** top-speed bonus while boosted; does not stack with the slipstream */
+  boostTop: 0.1,
+  /** acceleration multiplier while boosted */
+  boostAccel: 2.5,
 };
 
 export const TRACK = {
@@ -36,6 +42,11 @@ export const TRACK = {
   halfWidth: 92,
   /** distance between centre-line samples */
   spacing: 20,
+  /** boost pad size along and across the straight */
+  padLength: 100,
+  padWidth: 150,
+  /** pad centre offset from the middle of the straight, in the driving direction */
+  padOffset: 375,
 };
 
 /** The style bible's palette. Do not introduce colours outside it. */
@@ -45,5 +56,6 @@ export const PALETTE = {
   tarmac: "#30343b",
   chalk: "#f2ead3",
   ink: "#17201b",
+  amber: "#ffc233",
   cars: ["#ff5a3c", "#ffc233", "#3fb8ff", "#b59cff", "#7be0a4", "#ff8fc7", "#f2ead3", "#9aa3ad"],
 };

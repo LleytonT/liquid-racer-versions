@@ -10,7 +10,7 @@ import {
   type Vec,
 } from "../kernel/api";
 import { render } from "./render";
-import { buildTrack, headingAt, nearestIndex, wrap, type Track } from "./track";
+import { buildTrack, headingAt, nearestIndex, onPad, wrap, type Track } from "./track";
 import { TUNING } from "./tuning";
 
 export interface Car {
@@ -27,6 +27,8 @@ export interface Car {
   finishTick: number | null;
   onGrass: boolean;
   drafting: boolean;
+  /** ticks of boost-pad burst left; 0 when not boosted */
+  boost: number;
 }
 
 export interface State {
@@ -64,6 +66,7 @@ function init(_seed: number, racers: RacerSetup[]): State {
       finishTick: null,
       onGrass: false,
       drafting: false,
+      boost: 0,
     };
   });
   return { tick: 0, track, cars, touching: [] };
@@ -100,11 +103,17 @@ function step(s: State, inputs: Input[]): void {
     c.onGrass = Math.hypot(c.x - centre.x, c.y - centre.y) > track.halfWidth;
     c.drafting = !c.onGrass && isDrafting(s, c);
 
+    const padded = onPad(track, c.x, c.y);
+    if (padded) c.boost = TUNING.boostTicks;
+    const boosted = c.boost > 0;
+
     let top = TUNING.topSpeed;
     if (c.onGrass) top *= TUNING.grassTop;
-    if (c.drafting) top *= 1 + TUNING.draftBonus;
+    // Boost and slipstream do not stack: take the larger bonus.
+    top *= 1 + Math.max(c.drafting ? TUNING.draftBonus : 0, boosted ? TUNING.boostTop : 0);
+    const accel = TUNING.accel * (boosted ? TUNING.boostAccel : 1);
 
-    c.speed += throttle * TUNING.accel * Math.max(0, 1 - c.speed / top) * DT;
+    c.speed += throttle * accel * Math.max(0, 1 - c.speed / top) * DT;
     if (c.speed > top) c.speed -= (c.speed - top) * 3 * DT;
     if (throttle === 0) c.speed -= c.speed * TUNING.coastDrag * DT;
     c.speed -= brake * TUNING.brake * DT;
@@ -119,6 +128,7 @@ function step(s: State, inputs: Input[]): void {
     c.heading += yaw * DT;
     c.x += Math.cos(c.heading) * c.speed * DT;
     c.y += Math.sin(c.heading) * c.speed * DT;
+    if (!padded && c.boost > 0) c.boost--;
   }
 
   // Cars are circles that push each other apart.
