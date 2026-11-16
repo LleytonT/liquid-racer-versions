@@ -1,0 +1,183 @@
+import type { View } from "../kernel/api";
+import type { State } from "./index";
+import { headingAt } from "./track";
+import { PALETTE, TRACK, TUNING } from "./tuning";
+
+/** World units visible across the canvas width. */
+const VIEW_WIDTH = 1100;
+
+export function render(ctx: CanvasRenderingContext2D, s: State, view: View): void {
+  const { width, height } = view;
+  const focus = s.cars[view.focus] ?? s.cars[0];
+  const scale = width / VIEW_WIDTH;
+  const { points, halfWidth } = s.track;
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = PALETTE.felt;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.setTransform(scale, 0, 0, scale, width / 2 - focus.x * scale, height / 2 - focus.y * scale);
+
+  // Felt weave: a fixed dot grid so motion reads even on a straight.
+  const left = focus.x - VIEW_WIDTH / 2;
+  const top = focus.y - height / scale / 2;
+  ctx.fillStyle = PALETTE.feltDark;
+  const gap = 80;
+  for (let gx = Math.floor(left / gap) * gap; gx < left + VIEW_WIDTH + gap; gx += gap) {
+    for (let gy = Math.floor(top / gap) * gap; gy < top + height / scale + gap; gy += gap) {
+      ctx.fillRect(gx - 3, gy - 3, 6, 6);
+    }
+  }
+
+  const trace = () => {
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+    ctx.closePath();
+  };
+  ctx.lineJoin = "round";
+
+  // Chalk edge, then tarmac on top, leaves a chalk outline.
+  trace();
+  ctx.strokeStyle = PALETTE.chalk;
+  ctx.lineWidth = halfWidth * 2 + 10;
+  ctx.stroke();
+  trace();
+  ctx.strokeStyle = PALETTE.tarmac;
+  ctx.lineWidth = halfWidth * 2;
+  ctx.stroke();
+
+  // Dashed centre line.
+  trace();
+  ctx.setLineDash([28, 44]);
+  ctx.strokeStyle = "rgba(242,234,211,0.28)";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Braking marks: short dashed chalk bars across the back straight before the chicane.
+  const markR = TRACK.radius;
+  ctx.setLineDash([14, 10]);
+  ctx.strokeStyle = "rgba(242,234,211,0.55)";
+  ctx.lineWidth = 4;
+  for (let k = 0; k < TRACK.brakeMarks; k++) {
+    const mx = TRACK.chicaneCentre + TRACK.chicaneLength / 2 + TRACK.brakeMarkStart + k * TRACK.brakeMarkGap;
+    ctx.beginPath();
+    ctx.moveTo(mx, markR - 0.6 * halfWidth);
+    ctx.lineTo(mx, markR + 0.6 * halfWidth);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // Warning arrows: chalk chevrons before the chicane, tilted toward its first bend.
+  const bend = Math.sign(TRACK.chicaneAmp);
+  ctx.strokeStyle = PALETTE.chalk;
+  ctx.lineWidth = TRACK.arrowLine;
+  ctx.lineCap = "round";
+  for (let k = 0; k < TRACK.arrowCount; k++) {
+    const ax = TRACK.chicaneCentre + TRACK.chicaneLength / 2 + TRACK.arrowStart + k * TRACK.arrowGap;
+    ctx.save();
+    ctx.translate(ax, markR);
+    ctx.rotate(Math.PI - bend * TRACK.arrowTilt);
+    ctx.beginPath();
+    ctx.moveTo(-TRACK.arrowSize, -TRACK.arrowSpread);
+    ctx.lineTo(TRACK.arrowSize, 0);
+    ctx.lineTo(-TRACK.arrowSize, TRACK.arrowSpread);
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.lineCap = "butt";
+
+  // Boost pads: amber rectangles with a dashed chalk outline and ink chevrons.
+  for (const pad of s.track.pads) {
+    const pl = TRACK.padLength;
+    const pw = TRACK.padWidth;
+    ctx.save();
+    ctx.translate(pad.x, pad.y);
+    ctx.rotate(pad.heading);
+    ctx.fillStyle = PALETTE.amber;
+    ctx.fillRect(-pl / 2, -pw / 2, pl, pw);
+    ctx.setLineDash([10, 6]);
+    ctx.strokeStyle = PALETTE.chalk;
+    ctx.lineWidth = 4;
+    ctx.strokeRect(-pl / 2, -pw / 2, pl, pw);
+    ctx.setLineDash([]);
+    ctx.strokeStyle = PALETTE.ink;
+    ctx.lineWidth = 6;
+    for (const cx of [-pl * 0.25, 0, pl * 0.25]) {
+      ctx.beginPath();
+      ctx.moveTo(cx - pl * 0.1, -pw * 0.25);
+      ctx.lineTo(cx + pl * 0.1, 0);
+      ctx.lineTo(cx - pl * 0.1, pw * 0.25);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Start/finish: a chalk checker strip across the track at index 0.
+  const p0 = points[0];
+  const h0 = headingAt(s.track, 0);
+  ctx.save();
+  ctx.translate(p0.x, p0.y);
+  ctx.rotate(h0);
+  const cell = 15;
+  const rows = Math.floor((halfWidth * 2) / cell);
+  for (let col = 0; col < 2; col++) {
+    for (let row = 0; row < rows; row++) {
+      ctx.fillStyle = (row + col) % 2 === 0 ? PALETTE.chalk : PALETTE.ink;
+      ctx.fillRect(col * cell - cell, -halfWidth + row * cell, cell, cell);
+    }
+  }
+  ctx.restore();
+
+  s.cars.forEach((c, i) => {
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    ctx.rotate(c.heading);
+    const len = TUNING.carRadius * 2.5;
+    const wid = TUNING.carRadius * 1.35;
+
+    if (c.drafting) {
+      ctx.strokeStyle = "rgba(242,234,211,0.5)";
+      ctx.lineWidth = 2;
+      for (const off of [-wid * 0.5, 0, wid * 0.5]) {
+        ctx.beginPath();
+        ctx.moveTo(-len * 0.7, off);
+        ctx.lineTo(-len * 1.5, off);
+        ctx.stroke();
+      }
+    }
+
+    if (c.boost > 0) {
+      const fade = Math.min(1, c.boost / 20);
+      ctx.strokeStyle = PALETTE.amber;
+      ctx.lineWidth = 3;
+      for (const off of [-wid * 0.5, 0, wid * 0.5]) {
+        ctx.beginPath();
+        ctx.moveTo(-len * 0.7, off);
+        ctx.lineTo(-len * (0.7 + 1.3 * fade), off);
+        ctx.stroke();
+      }
+    }
+
+    ctx.fillStyle = PALETTE.ink;
+    ctx.fillRect(-len * 0.34, -wid * 0.62, len * 0.2, wid * 1.24);
+    ctx.fillRect(len * 0.16, -wid * 0.62, len * 0.2, wid * 1.24);
+
+    ctx.fillStyle = PALETTE.cars[i % PALETTE.cars.length];
+    ctx.beginPath();
+    ctx.roundRect(-len / 2, -wid / 2, len, wid, 6);
+    ctx.fill();
+
+    ctx.fillStyle = PALETTE.ink;
+    ctx.beginPath();
+    ctx.roundRect(-len * 0.08, -wid * 0.32, len * 0.26, wid * 0.64, 3);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.fillStyle = c.human ? PALETTE.chalk : "rgba(242,234,211,0.6)";
+    ctx.font = `${c.human ? "700" : "500"} 13px ui-monospace, Menlo, monospace`;
+    ctx.textAlign = "center";
+    ctx.fillText(c.name, c.x, c.y - TUNING.carRadius - 12);
+  });
+}

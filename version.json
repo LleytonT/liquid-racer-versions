@@ -1,0 +1,64 @@
+{
+  "id": "dgkggab4",
+  "title": "Chicane Warning Arrows",
+  "summary": "Chalk arrows on the back straight point the way into the chicane, so you can see the kink coming.",
+  "parent": "2qj2na4j",
+  "requestedBy": "lleyton",
+  "request": "Paint a chalk arrow on the track before the chicane so drivers can see it coming.",
+  "play": "https://liquid-racer.vercel.app/n/dgkggab4",
+  "gates": [
+    {
+      "id": "contract",
+      "pass": true,
+      "value": "ok",
+      "target": "default export satisfies Game, 2 to 8 racers"
+    },
+    {
+      "id": "determinism",
+      "pass": true,
+      "value": "identical",
+      "target": "identical"
+    },
+    {
+      "id": "beginner-finishes",
+      "pass": true,
+      "value": 1,
+      "target": ">= 0.9 of beginner bots finish"
+    },
+    {
+      "id": "skill-matters",
+      "pass": true,
+      "value": 1,
+      "target": ">= 0.8 of mixed races won by an expert"
+    },
+    {
+      "id": "close-racing",
+      "pass": true,
+      "value": 1.85,
+      "target": ">= 2 per race on average, or no lower than the parent's 1.85"
+    },
+    {
+      "id": "race-length",
+      "pass": true,
+      "value": 54.4,
+      "target": "median winner time 20s to 180s, every race finishes"
+    },
+    {
+      "id": "performance",
+      "pass": true,
+      "value": 0.006,
+      "target": "<= 1 ms"
+    }
+  ],
+  "spec": {
+    "spec": "Draw a chalk arrow marking on the tarmac of the back straight, shortly before the chicane. It shows the direction of the first bend of the kink (left or right) and is drawn only on the track surface, under the cars.\n\n- Use a short row of two or three chevron arrows, cream chalk with the style bible's slightly thick lines, with no gradients or shadows. They sit a little way before the chicane entry, spread across the track width or along its centre line.\n- The arrows are decoration only. They don't change car physics, speed, grip, bot behaviour, the track shape, lap counting or scoring, so race outcomes and the gates are unaffected.\n- No new in-world text. Don't change the HUD (lap, position, timer).\n- Left out: braking-zone effects, speed-limit signs, and anything that affects driving.",
+    "design": "# Design: Chicane Warning Arrows (render-only)\n\n## 1. Mechanics\nThere are none. Physics, track points, bots, standings and `step`/`observe` are untouched. The arrows are a pure draw call in `render`. They read no state and add no tick cost.\n\nGeometry, from `track.ts`:\n- The back straight runs toward −x at y = `TRACK.radius`, so heading is π.\n- The chicane entry is at x = `chicaneCentre + chicaneLength/2` = 300.\n- For small u, the offset is `chicaneAmp·sin(2πu)·sin(πu)`, which has the sign of `chicaneAmp`.\n- With `chicaneAmp` = +35 the first bend goes toward +y, which is the car's **left** when heading is π.\n- Draw the arrows as follows: `bend = Math.sign(TRACK.chicaneAmp)`, so +1 means toward +y. Don't hard-code \"left\".\n\nNew tunables go in the `TRACK` object in `game/tuning.ts`:\n\n| Name | Value | Meaning |\n|---|---|---|\n| `arrowCount` | 3 | chevrons in the row |\n| `arrowStart` | 200 | distance upstream of the entry (x > 300) to the first (nearest) chevron centre |\n| `arrowGap` | 70 | spacing along the straight |\n| `arrowSize` | 24 | chevron half-length along travel |\n| `arrowSpread` | 26 | chevron half-width across travel |\n| `arrowTilt` | 0.35 | radians the chevron is turned toward the first bend |\n| `arrowLine` | 6 | line width |\n\nThe nearest chevron is at x = 500 and the farthest at x = 640. The existing braking marks occupy x = 360–460, so this clears them. The boost pad on this straight is at x = −375, well away.\n\n## 2. On screen\n- In `render.ts`, draw the arrows right after the braking-marks block. That is after the track and centre line, and before the pads, start line, cars and name labels. The kernel draws the HUD on top of everything.\n- For each chevron k, with `x = chicaneCentre + chicaneLength/2 + arrowStart + k*arrowGap` and `y = TRACK.radius`:\n  - `save`, `translate(x, y)`.\n  - `rotate(Math.PI - bend*arrowTilt)`. Local +x is then travel direction, angled toward the bend.\n  - Draw one open polyline: (−size, −spread) → (+size, 0) → (−size, +spread).\n  - Use `lineWidth = arrowLine`, `lineJoin = \"round\"`, `lineCap = \"round\"`, solid `PALETTE.chalk`, and `setLineDash([])`.\n  - `restore`.\n- Chevron tips point along travel, toward the chicane, tilted toward the first bend.\n- There is no fill, gradient, shadow or blur. The only colour is Chalk on the Tarmac.\n- Cars are opaque and drawn later, so they stay clearly visible over the arrows.\n- Restore `lineJoin` and `lineCap` to their previous values, or reset them to the defaults, after the block. Later code assumes `lineJoin = \"round\"`, so keep that and reset only `lineCap` to `\"butt\"`.\n- There is no new text.\n\n## 3. Bots\nNo change. `ahead`, `rivals` and `actionReady` stay as in the parent. The arrows aren't gameplay, so the bots ignore them. `actionReady` stays false.\n\n## 4. Gates\n- Beginner finishes, expert beats beginner, and lead changes are all unaffected. Sim outputs are bit-identical to the parent, and same-seed replays match.\n- The only risk is accidentally touching state or `step`. Don't.\n\n## 5. Files\n- `game/tuning.ts`: add the seven `arrow*` keys to `TRACK`, with a comment that they are decoration only.\n- `game/render.ts`: add the drawing block above, reading the `TRACK` keys and `PALETTE.chalk`.\n- Nothing else changes: `index.ts` and `track.ts` stay the same, and `kernel/` is frozen.\n\nBuilder check: run `sh check.sh`. Confirm the gate results are identical to the parent's.",
+    "acceptance": [
+      "Chalk chevron arrows are visible on the back straight, before the chicane entry, pointing along the direction of travel and toward the first bend.",
+      "Arrows use only palette colours (Chalk on Tarmac) with flat shapes and no gradients, shadows or blur.",
+      "Arrows are drawn beneath the cars and the HUD, and cars remain clearly visible when driving over them.",
+      "Car physics, track geometry, bot behaviour and lap timing are identical to the parent node, and a same-seed replay gives the same results.",
+      "The node passes all gates, with simulation cost per tick no higher than the parent node's, and adds no HUD text."
+    ]
+  }
+}
