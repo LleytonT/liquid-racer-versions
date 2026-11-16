@@ -1,6 +1,6 @@
 /** Every number that shapes how the race feels. Change values here first. */
 export const TUNING = {
-  racers: 5,
+  racers: 6,
   laps: 3,
   /** world units per second on a clear straight */
   topSpeed: 320,
@@ -18,6 +18,8 @@ export const TUNING = {
   /** top-speed multiplier on grass */
   grassTop: 0.4,
   carRadius: 15,
+  /** centre-line samples between grid rows */
+  gridRowGap: 4,
   /** slipstream: top-speed bonus when tucked in behind another car */
   draftBonus: 0.1,
   draftMin: 30,
@@ -45,5 +47,5 @@ export const PALETTE = {
   tarmac: "#30343b",
   chalk: "#f2ead3",
   ink: "#17201b",
-  cars: ["#ff5a3c", "#ffc233", "#3fb8ff", "#b59cff", "#7be0a4", "#ff8fc7", "#f2ead3", "#9aa3ad"],
+  cars: ["#ff5a3c", "#ffc233", "#3fb8ff", "#b59cff", "#7be0a4", "#ff8fc7"],
 };

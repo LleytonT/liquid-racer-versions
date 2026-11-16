@@ -48,7 +48,7 @@ function init(_seed: number, racers: RacerSetup[]): State {
     // Two-wide staggered grid behind the start line.
     const row = Math.floor(i / 2);
     const side = i % 2 === 0 ? -1 : 1;
-    const idx = wrap(-3 - row * 3 - (i % 2), n);
+    const idx = wrap(-3 - row * TUNING.gridRowGap - (i % 2), n);
     const p = track.points[idx];
     const h = headingAt(track, idx);
     const off = side * track.halfWidth * 0.4;
