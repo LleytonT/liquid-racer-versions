@@ -56,6 +56,17 @@ export const TRACK = {
   brakeMarks: 3,
   brakeMarkStart: 60,
   brakeMarkGap: 50,
+  /** chalk chevrons warning of the chicane's first bend; decoration only, never read by step */
+  arrowCount: 3,
+  /** distance upstream of the chicane entry to the nearest chevron centre */
+  arrowStart: 200,
+  arrowGap: 70,
+  /** chevron half-length along travel and half-width across it */
+  arrowSize: 24,
+  arrowSpread: 26,
+  /** radians the chevron is turned toward the first bend */
+  arrowTilt: 0.35,
+  arrowLine: 6,
 };
 
 /** The style bible's palette. Do not introduce colours outside it. */

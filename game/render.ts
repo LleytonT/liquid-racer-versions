@@ -69,6 +69,25 @@ export function render(ctx: CanvasRenderingContext2D, s: State, view: View): voi
   }
   ctx.setLineDash([]);
 
+  // Warning arrows: chalk chevrons before the chicane, tilted toward its first bend.
+  const bend = Math.sign(TRACK.chicaneAmp);
+  ctx.strokeStyle = PALETTE.chalk;
+  ctx.lineWidth = TRACK.arrowLine;
+  ctx.lineCap = "round";
+  for (let k = 0; k < TRACK.arrowCount; k++) {
+    const ax = TRACK.chicaneCentre + TRACK.chicaneLength / 2 + TRACK.arrowStart + k * TRACK.arrowGap;
+    ctx.save();
+    ctx.translate(ax, markR);
+    ctx.rotate(Math.PI - bend * TRACK.arrowTilt);
+    ctx.beginPath();
+    ctx.moveTo(-TRACK.arrowSize, -TRACK.arrowSpread);
+    ctx.lineTo(TRACK.arrowSize, 0);
+    ctx.lineTo(-TRACK.arrowSize, TRACK.arrowSpread);
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.lineCap = "butt";
+
   // Boost pads: amber rectangles with a dashed chalk outline and ink chevrons.
   for (const pad of s.track.pads) {
     const pl = TRACK.padLength;
