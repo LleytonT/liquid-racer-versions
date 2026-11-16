@@ -1,5 +1,5 @@
-import type { View } from "../kernel/api";
-import type { State } from "./index";
+import { TICK_RATE, type View } from "../kernel/api";
+import { dinoPos, type State } from "./index";
 import { headingAt } from "./track";
 import { PALETTE, TUNING } from "./tuning";
 
@@ -71,6 +71,46 @@ export function render(ctx: CanvasRenderingContext2D, s: State, view: View): voi
   }
   ctx.restore();
 
+  const D = TUNING.dino;
+  const dino = dinoPos(s);
+
+  // Chalk marks under the cars: target ring, stall ring with stomp strokes, immunity ring.
+  s.cars.forEach((c, i) => {
+    if (c.stall > 0) {
+      const left = c.stall / (D.stallTime * TICK_RATE);
+      ctx.setLineDash([8, 8]);
+      ctx.strokeStyle = PALETTE.chalk;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, 22 + 12 * left, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.strokeStyle = PALETTE.cars[0];
+      ctx.lineWidth = 4;
+      for (let k = 0; k < 4; k++) {
+        const a = Math.PI / 4 + (k * Math.PI) / 2;
+        ctx.beginPath();
+        ctx.moveTo(c.x + Math.cos(a) * 38, c.y + Math.sin(a) * 38);
+        ctx.lineTo(c.x + Math.cos(a) * 50, c.y + Math.sin(a) * 50);
+        ctx.stroke();
+      }
+    } else if (c.immune > 0) {
+      ctx.strokeStyle = "rgba(242,234,211,0.35)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, 26, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (i === s.dino.target && Math.hypot(c.x - dino.x, c.y - dino.y) < D.markRange) {
+      ctx.setLineDash([6, 8]);
+      ctx.strokeStyle = PALETTE.chalk;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, 26, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  });
+
   s.cars.forEach((c, i) => {
     ctx.save();
     ctx.translate(c.x, c.y);
@@ -109,4 +149,72 @@ export function render(ctx: CanvasRenderingContext2D, s: State, view: View): voi
     ctx.textAlign = "center";
     ctx.fillText(c.name, c.x, c.y - TUNING.carRadius - 12);
   });
+
+  drawDino(ctx, dino.x, dino.y, dino.heading, s.dino.s);
+}
+
+/** A flat Mint chalk dinosaur with an Ink outline, facing +x before rotation. */
+function drawDino(ctx: CanvasRenderingContext2D, x: number, y: number, heading: number, s: number): void {
+  const mint = PALETTE.cars[4];
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(heading);
+  ctx.lineJoin = "round";
+
+  // Legs alternate as it runs.
+  const stride = Math.floor(s * 2) % 2 === 0 ? 1 : -1;
+  ctx.strokeStyle = PALETTE.ink;
+  ctx.lineWidth = 5;
+  for (const [lx, side] of [[12, 1], [-10, -1]]) {
+    ctx.beginPath();
+    ctx.moveTo(lx, 14 * side);
+    ctx.lineTo(lx + 8 * stride * side, 24 * side);
+    ctx.moveTo(lx, -14 * side);
+    ctx.lineTo(lx - 8 * stride * side, -24 * side);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = mint;
+  ctx.strokeStyle = PALETTE.ink;
+  ctx.lineWidth = 3;
+
+  // Tail.
+  ctx.beginPath();
+  ctx.moveTo(-28, -10);
+  ctx.lineTo(-58, 0);
+  ctx.lineTo(-28, 10);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Body.
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 35, 18, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Head.
+  ctx.beginPath();
+  ctx.arc(40, 0, 13, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = PALETTE.ink;
+  for (const ey of [-5, 5]) {
+    ctx.beginPath();
+    ctx.arc(45, ey, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Chalk back plates along the spine.
+  ctx.fillStyle = PALETTE.chalk;
+  for (const px of [-16, 0, 16]) {
+    ctx.beginPath();
+    ctx.moveTo(px - 7, -4);
+    ctx.lineTo(px + 7, 0);
+    ctx.lineTo(px - 7, 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
 }

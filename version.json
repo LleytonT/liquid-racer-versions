@@ -1,11 +1,11 @@
 {
-  "id": "zdqwkvd4",
-  "title": "Sixth Racer",
-  "summary": "One more car joins the grid, so the oval now starts with six racers.",
-  "parent": "ctfu46ft",
-  "requestedBy": "lleyton",
-  "request": "Add a sixth racer to the grid so the pack is even busier.",
-  "play": "https://liquid-racer.vercel.app/n/zdqwkvd4",
+  "id": "dar8p9bn",
+  "title": "Chalk Dinosaur",
+  "summary": "A chalk dinosaur stomps around the oval after the leader, and any car it touches is stopped for a moment.",
+  "parent": "zdqwkvd4",
+  "requestedBy": "Lleyton",
+  "request": "Add a motorbikes and a dinosaur chasing the drivers. if they get touched by the dinosaur they get eliminated",
+  "play": "https://liquid-racer.vercel.app/n/dar8p9bn",
   "gates": [
     {
       "id": "contract",
@@ -34,32 +34,32 @@
     {
       "id": "close-racing",
       "pass": true,
-      "value": 2.5,
-      "target": ">= 2 per race on average, or no lower than the parent's 2.2"
+      "value": 9.65,
+      "target": ">= 2 per race on average, or no lower than the parent's 2.5"
     },
     {
       "id": "race-length",
       "pass": true,
-      "value": 55.7,
+      "value": 61.1,
       "target": "median winner time 20s to 180s, every race finishes"
     },
     {
       "id": "performance",
       "pass": true,
-      "value": 0.013,
+      "value": 0.028,
       "target": "<= 1 ms"
     }
   ],
   "spec": {
-    "spec": "Increase the starting grid from five racers to six on the oval. The new car is the same model and runs under the same rules as the other racers, with no special abilities and no change to the bots, HUD, gates or scoring.\n\n- Give the sixth car its own starting slot on the grid. It must not overlap any other car.\n- Colour it from the style bible's accent colours. Use one not already used by the other five cars, for example Rose if it is free.\n- The kernel's lap, position and timer display must cover all six cars without redrawing it.\n- Keep races at three laps and about a minute long.",
-    "design": "# Design: Sixth Racer\n\nThis is a grid-size change, not a new mechanic. I read `game/` and `kernel/` and did not run `check.sh`. The gate and overlap reasoning below is from reading the code.\n\n## 1. Mechanics\n- Set `racers: 6` in `TUNING` in `game/tuning.ts`. This is the only number that changes.\n- `game/index.ts` already reads `TUNING.racers` into `game.racers`, so the kernel will pass six `RacerSetup`s.\n- Physics, bump rules, drafting, laps (3) and scoring stay as they are. Car 6 gets no special handling.\n- The existing grid formula gives car index 5 its own slot. Rows are 3 centre-line indexes apart, about 60 units. The stagger inside a row is 1 index, about 20 units. The lateral offset is ±0.4 × `halfWidth`, about ±37 units.\n\n| Car | Row | Index | Side |\n|---|---|---|---|\n| 0 | 0 | -3 | left |\n| 1 | 0 | -4 | right |\n| 2 | 1 | -6 | left |\n| 3 | 1 | -7 | right |\n| 4 | 2 | -9 | left |\n| 5 | 2 | -10 | right |\n\n- Car 5 is about 200 units behind the line. That still sits on the straight, because the start line is 24 points (about 480 units) past the oval's seam.\n- Car 5 is more than 60 units from every other car. Contact needs under 30 (`carRadius × 2`), so nothing overlaps.\n- The `touching` key is `i*8+j`. With six cars `j` is at most 5, so keys stay unique.\n- The Builder should not change the grid code.\n\n## 2. On screen\n- `PALETTE.cars[5]` is already Rose `#ff8fc7`. Cars 0–4 use Tomato, Amber, Sky, Lilac and Mint, so Rose is free and gives six distinct colours.\n- `PALETTE.cars` also holds Chalk and `#9aa3ad`, a grey that is not in the style bible. Trim the array to exactly the six accent colours so no car can ever be drawn off-palette.\n- `render.ts` already draws every car in `s.cars` with `PALETTE.cars[i % length]` plus a name label, so it needs no change.\n- The kernel's lap, position and timer display reads `observe` and `status`, which are already generic over the car count.\n\n## 3. Bots\n- Nothing changes. `observe` already lists every other car in `rivals`, which is now five entries.\n- `ahead` stays on the centre line.\n- `actionReady` stays `false`, because there is no action.\n\n## 4. Gates\n- **Beginner finishes:** low risk. Six beginners in traffic means slightly more bumping. A bump costs 6% of speed, only on the first tick of contact, and nothing blocks a car from finishing.\n- **Expert beats beginner:** low risk. The mixed race becomes 3 experts and 3 beginners, with the same physics, so skill still decides it.\n- **Lead changes:** low risk, and probably better. More cars on the same track means more passing. Car 5 starts last.\n- **Race length:** unchanged at three laps, since nothing in the physics changes.\n- **Performance:** O(n²) collision and drafting checks go from 10 to 15 pairs. That is negligible.\n- **Determinism:** nothing random is added.\n- **If a gate fails:** if lead changes dip below the parent's, the first lever is to widen the row spacing from 3 to 4 indexes. Don't touch the bots.\n\n## 5. Files\n- `game/tuning.ts`: set `racers: 5` to `racers: 6`, and trim `PALETTE.cars` to `[\"#ff5a3c\", \"#ffc233\", \"#3fb8ff\", \"#b59cff\", \"#7be0a4\", \"#ff8fc7\"]`.\n- `game/index.ts`, `game/render.ts`, `game/track.ts`: no change.\n- After the edit, run `sh check.sh`. All gates should pass, and the close-racing value should be at least the parent's.",
+    "spec": "Add one dinosaur to the race, drawn as a simple flat chalk shape in a palette colour (Mint or Tomato) with an Ink outline. It starts a little behind the starting grid when the race starts and runs around the oval in the racing direction.\n\n- It always chases the current race leader. It moves along the track at a speed that is slightly higher than a typical car's average speed, but its speed is capped. A car that stays ahead can stay ahead only by driving well.\n- If it touches a car, that car is stalled (slowed to a near stop) for about 1.5 seconds, with a clear chalk \"stomp\" mark or dashed ring at the car. The car is not eliminated and can always finish.\n- After touching a car, the dinosaur cannot stall that same car again for about 6 seconds. It then picks the leader again.\n- The dinosaur is part of the deterministic simulation: no random numbers except the seeded generator, so replays from the same seed are identical. It must be cheap to simulate.\n- It applies equally to the player and to bots. Do not change bot behaviour, the HUD, the scoring, or the gates. Do not add any text beyond a few words, if any.\n- Left out: motorbikes, and permanent elimination of cars.",
+    "design": "# Design: Chalk Dinosaur\n\n## 1. Mechanics\nThe dino is not a racer. It is an extra object in `State`: `dino {s, lat, speed}`. `s` is a float centre-line index and `lat` is the sideways offset from the centre line. It runs in the racing direction and follows the centre line, so it ignores grip and grass.\n\n**Target.** Each tick the target is the best-placed unfinished car whose `immune` is 0, using `standings()`. If there is none, the dino cruises.\n\n**Speed.**\n- `gap` is the signed, wrapped arc distance from the dino to the target.\n- Desired speed is `clamp(cruise + chaseGain*gap, lurk, cap)`.\n- Actual speed moves toward the desired speed at `accel`.\n- It starts at 0, so cars outrun it off the grid and nobody is hit at the start.\n- If the target is behind it, the dino slows toward `lurk`. The pack passes and it re-targets.\n\n**Sideways.** `lat` moves toward the target's offset from the centre line, at most `lateralRate`. The offset is `(car − point)·(−sin h, cos h)`. Clamp `lat` to ±0.8·halfWidth.\n\n**Touch.** After the car and collision steps and the `idx` update, check each car. If it is unfinished, has `immune === 0` and is within `radius + carRadius` of the dino, then set `stall = stallTime*60` ticks and `immune = immuneTime*60` ticks. The immunity runs from the touch, so it includes the stall. Decrement both every tick.\n\n**Stalled car.**\n- `top = topSpeed*stallTop`.\n- Excess speed decays at `stallDecay` instead of 3.\n- Steering and throttle still work, so the car drives on afterwards.\n- No car is ever eliminated.\n\n**Starting numbers.** Put these in `TUNING.dino` in `tuning.ts`:\n\n| Tunable | Value |\n|---|---|\n| `startBehind` | 5 samples behind the rear grid row, which is idx `-12`, so idx `-17` |\n| `radius` | 22 |\n| `cruise` | 285 |\n| `cap` | 300 |\n| `lurk` | 200 |\n| `chaseGain` | 0.6 |\n| `accel` | 80 |\n| `lateralRate` | 45 |\n| `stallTime` | 1.5 s |\n| `stallTop` | 0.08 |\n| `stallDecay` | 8 |\n| `immuneTime` | 6 s |\n\nThe dino needs no random numbers, so it is fully deterministic. The per-tick cost is O(cars).\n\n## 2. On screen\nEverything below is flat, with no shadows, in palette colours only.\n- **Dino:** a Mint body ellipse about 70×36, drawn bigger than a car. It has an Ink 3px outline, a head circle and a tail triangle. Three Chalk back-plate triangles sit on top. Two Ink leg ticks alternate with `s`. It is rotated to the track heading.\n- **Target mark:** a dashed Chalk ring of radius 26 around the targeted car, shown when the dino is within 500 units. This shows who it is hunting.\n- **Stall:** a dashed Chalk ring around the car that shrinks from radius 34 to 22 over the stall, so the timer is visible. Four short Tomato stomp strokes radiate from the car. The ring and strokes follow the car.\n- **Immunity:** a thin solid Chalk ring at 0.35 alpha around the car for the rest of the 6 s.\n- **Text:** none.\n\n## 3. Bots\n- Append the dino's `{x, y}` to `rivals`, after the cars. This is the honest option.\n- Bots dodge it only when it is ahead of them, within 130 units forward. Experts react at once and beginners lag 12 ticks, so skill pays.\n- `ahead` is unchanged, and so is `actionReady` (always false). `place` ignores the dino.\n\n## 4. Gates\n- **Gate 1 (beginners finish):** The worst case is about 20% of a beginner's time stalled, and the race stays well under 180 s. Cars always keep moving. If beginners fail, lower `cap` or `stallTime`.\n- **Gate 2 (expert beats beginner):** This is the main risk, because the dino hunts leaders. The dino's `cap` of 300 is below the top speed of 320, so a clean drive can stay ahead. The dino is also dodgeable and hits everyone equally. If experts fall below 80%, lower `cap` toward 290 or `stallTop` toward 0.15. Keep `stallTime` at about 1.2 s or more.\n- **Gate 3 (lead changes):** This should improve. The dino stalls leaders, and the pack then passes. It also hits those who pass it.\n\n## 5. Files\n- **`tuning.ts`:** add the `dino` block above.\n- **`track.ts`:** add `pointAt(track, s, lat)`, which returns `{x, y, heading}` by interpolating between points. It offsets along the normal (−sin h, cos h). The step is `track.length/n`.\n- **`index.ts`:**\n  - Add `stall` and `immune` to `Car`, and `dino` to `State`.\n  - In `init`, create the dino.\n  - In `step`, apply the stall to `top` and the decay, then update the dino after the idx update and run the touch check.\n  - In `observe`, append the dino to `rivals`.\n- **`render.ts`:** draw the dino, the target ring, the stall and stomp marks, and the immunity ring. Draw the dino after the cars.\n\nRun `sh check.sh` and tune `cap` and `stallTop` if gate 2 or 1 fails.",
     "acceptance": [
-      "Six cars appear on the starting grid, each in a distinct slot with no overlap.",
-      "All six cars have visibly different colours, all taken from the style bible palette.",
-      "Every car, the player's included, can complete three laps, and a race still ends with six classified finishers.",
-      "The simulation replays identically from the same seed.",
-      "The median race stays between 20 and 180 seconds, and a tick costs under 1 ms with six cars.",
-      "The node passes the beginner-finish and skill-matters gates, and its close-racing result is no worse than its parent's."
+      "A dinosaur is visible on the track from the start of the race and keeps moving around the oval in the racing direction.",
+      "When the dinosaur touches a car, that car is visibly stalled for about 1.5 seconds and then drives on; no car is ever eliminated.",
+      "The same car cannot be stalled again by the dinosaur within about 6 seconds.",
+      "At least 90% of beginner bots still finish the race, and expert bots still win at least 80% of mixed races.",
+      "The same seed replays identically, the median race stays between 20 and 180 seconds, and a tick costs under 1 ms.",
+      "Only the style bible palette is used, with flat shapes and no gradients or shadows."
     ]
   }
 }

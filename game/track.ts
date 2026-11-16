@@ -60,3 +60,18 @@ export function headingAt(track: Track, i: number): number {
   const b = track.points[wrap(i + 1, n)];
   return Math.atan2(b.y - a.y, b.x - a.x);
 }
+
+/** Point at a fractional centre-line index `s`, offset `lat` along the normal (-sin h, cos h). */
+export function pointAt(track: Track, s: number, lat: number): { x: number; y: number; heading: number } {
+  const n = track.points.length;
+  const i = Math.floor(s);
+  const f = s - i;
+  const a = track.points[wrap(i, n)];
+  const b = track.points[wrap(i + 1, n)];
+  const heading = Math.atan2(b.y - a.y, b.x - a.x);
+  return {
+    x: a.x + (b.x - a.x) * f - Math.sin(heading) * lat,
+    y: a.y + (b.y - a.y) * f + Math.cos(heading) * lat,
+    heading,
+  };
+}

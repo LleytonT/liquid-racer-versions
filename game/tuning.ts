@@ -27,6 +27,35 @@ export const TUNING = {
   draftCone: 0.35,
   /** speed kept by each car after a bump */
   bumpKeep: 0.94,
+  /** the chalk dinosaur that hunts the leader */
+  dino: {
+    /** start position as a centre-line index, behind the rear grid row */
+    startBehind: -17,
+    radius: 22,
+    /** units/s it runs at when level with its target */
+    cruise: 285,
+    cap: 300,
+    /** slowest it runs once moving, so the pack can pass */
+    lurk: 200,
+    /** extra desired speed per unit of gap to the target */
+    chaseGain: 0.6,
+    /** units/s^2 */
+    accel: 80,
+    /** sideways units/s */
+    lateralRate: 45,
+    /** largest sideways offset, as a fraction of the half width */
+    lateralMax: 0.8,
+    /** seconds a touched car is stalled */
+    stallTime: 1.5,
+    /** top-speed multiplier while stalled */
+    stallTop: 0.08,
+    /** excess-speed decay per second while stalled */
+    stallDecay: 8,
+    /** seconds from a touch before the same car can be stalled again */
+    immuneTime: 6,
+    /** distance at which the target ring shows */
+    markRange: 500,
+  },
 };
 
 export const TRACK = {

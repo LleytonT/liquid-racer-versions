@@ -1,5 +1,6 @@
 import {
   DT,
+  TICK_RATE,
   angleDiff,
   clamp,
   type Game,
@@ -10,7 +11,7 @@ import {
   type Vec,
 } from "../kernel/api";
 import { render } from "./render";
-import { buildTrack, headingAt, nearestIndex, wrap, type Track } from "./track";
+import { buildTrack, headingAt, nearestIndex, pointAt, wrap, type Track } from "./track";
 import { TUNING } from "./tuning";
 
 export interface Car {
@@ -27,6 +28,21 @@ export interface Car {
   finishTick: number | null;
   onGrass: boolean;
   drafting: boolean;
+  /** ticks left stalled by the dinosaur */
+  stall: number;
+  /** ticks left before the dinosaur can stall this car again */
+  immune: number;
+}
+
+export interface Dino {
+  /** fractional centre-line index */
+  s: number;
+  /** sideways offset from the centre line */
+  lat: number;
+  /** world units per second */
+  speed: number;
+  /** car being chased, or -1 */
+  target: number;
 }
 
 export interface State {
@@ -35,6 +51,7 @@ export interface State {
   cars: Car[];
   /** pairs of cars in contact last tick, as i * 8 + j */
   touching: number[];
+  dino: Dino;
 }
 
 function progressOf(s: State, c: Car): number {
@@ -64,9 +81,12 @@ function init(_seed: number, racers: RacerSetup[]): State {
       finishTick: null,
       onGrass: false,
       drafting: false,
+      stall: 0,
+      immune: 0,
     };
   });
-  return { tick: 0, track, cars, touching: [] };
+  const dino: Dino = { s: wrap(TUNING.dino.startBehind, n), lat: 0, speed: 0, target: -1 };
+  return { tick: 0, track, cars, touching: [], dino };
 }
 
 function isDrafting(s: State, c: Car): boolean {
@@ -103,9 +123,11 @@ function step(s: State, inputs: Input[]): void {
     let top = TUNING.topSpeed;
     if (c.onGrass) top *= TUNING.grassTop;
     if (c.drafting) top *= 1 + TUNING.draftBonus;
+    if (c.stall > 0) top *= TUNING.dino.stallTop;
+    const decay = c.stall > 0 ? TUNING.dino.stallDecay : 3;
 
     c.speed += throttle * TUNING.accel * Math.max(0, 1 - c.speed / top) * DT;
-    if (c.speed > top) c.speed -= (c.speed - top) * 3 * DT;
+    if (c.speed > top) c.speed -= (c.speed - top) * decay * DT;
     if (throttle === 0) c.speed -= c.speed * TUNING.coastDrag * DT;
     c.speed -= brake * TUNING.brake * DT;
 
@@ -158,6 +180,59 @@ function step(s: State, inputs: Input[]): void {
     else if (c.idx > before + n / 2) c.lap--;
     if (c.finishTick == null && c.lap >= TUNING.laps) c.finishTick = s.tick;
   }
+
+  stepDino(s);
+}
+
+/** The dinosaur runs the centre line after the leader and stalls any car it touches. */
+function stepDino(s: State): void {
+  const { track, dino } = s;
+  const D = TUNING.dino;
+  const n = track.points.length;
+  const unit = track.length / n;
+
+  for (const c of s.cars) {
+    if (c.stall > 0) c.stall--;
+    if (c.immune > 0) c.immune--;
+  }
+
+  dino.target = -1;
+  for (const i of standings(s)) {
+    const c = s.cars[i];
+    if (c.finishTick == null && c.immune === 0) {
+      dino.target = i;
+      break;
+    }
+  }
+
+  let desired = D.cruise;
+  if (dino.target >= 0) {
+    const c = s.cars[dino.target];
+    let gap = wrap(c.idx - dino.s, n);
+    if (gap > n / 2) gap -= n;
+    desired = clamp(D.cruise + D.chaseGain * gap * unit, D.lurk, D.cap);
+    const p = track.points[c.idx];
+    const h = headingAt(track, c.idx);
+    const off = clamp((c.x - p.x) * -Math.sin(h) + (c.y - p.y) * Math.cos(h), -D.lateralMax * track.halfWidth, D.lateralMax * track.halfWidth);
+    const maxStep = D.lateralRate * DT;
+    dino.lat += clamp(off - dino.lat, -maxStep, maxStep);
+  }
+  const maxDv = D.accel * DT;
+  dino.speed += clamp(desired - dino.speed, -maxDv, maxDv);
+  dino.s = wrap(dino.s + (dino.speed * DT) / unit, n);
+
+  const at = pointAt(track, dino.s, dino.lat);
+  const reach = D.radius + TUNING.carRadius;
+  for (const c of s.cars) {
+    if (c.finishTick != null || c.immune > 0) continue;
+    if (Math.hypot(c.x - at.x, c.y - at.y) >= reach) continue;
+    c.stall = Math.round(D.stallTime * TICK_RATE);
+    c.immune = Math.round(D.immuneTime * TICK_RATE);
+  }
+}
+
+export function dinoPos(s: State): { x: number; y: number; heading: number } {
+  return pointAt(s.track, s.dino.s, s.dino.lat);
 }
 
 function standings(s: State): number[] {
@@ -185,7 +260,10 @@ function observe(s: State, racer: number): Observation {
     speed: c.speed,
     topSpeed: TUNING.topSpeed,
     ahead,
-    rivals: s.cars.filter((o) => o !== c).map((o) => ({ x: o.x, y: o.y })),
+    rivals: s.cars
+      .filter((o) => o !== c)
+      .map((o) => ({ x: o.x, y: o.y }))
+      .concat([dinoPos(s)].map((d) => ({ x: d.x, y: d.y }))),
     halfWidth: s.track.halfWidth,
     progress: clamp(progressOf(s, c), 0, TUNING.laps),
     laps: TUNING.laps,
