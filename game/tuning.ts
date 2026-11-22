@@ -38,6 +38,24 @@ export const TRACK = {
   spacing: 20,
 };
 
+/** Chalk starting grid: where cars line up and how their boxes are drawn. */
+export const GRID = {
+  /** centre-line steps behind the line for row 0 */
+  firstBack: 3,
+  /** steps between rows */
+  rowGap: 3,
+  /** extra steps for the right-hand slot */
+  stagger: 1,
+  /** lateral offset as a fraction of halfWidth */
+  sideFrac: 0.4,
+  /** box size along the track, world units */
+  boxLength: 50,
+  /** box size across the track, world units */
+  boxWidth: 38,
+  /** chalk line, slightly thicker than the centre line */
+  lineWidth: 4,
+};
+
 /** The style bible's palette. Do not introduce colours outside it. */
 export const PALETTE = {
   felt: "#1f3d2f",

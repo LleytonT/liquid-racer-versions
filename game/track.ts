@@ -1,5 +1,5 @@
 import type { Vec } from "../kernel/api";
-import { TRACK } from "./tuning";
+import { GRID, TRACK } from "./tuning";
 
 export interface Track {
   /** closed centre line, evenly spaced, clockwise on screen */
@@ -59,4 +59,16 @@ export function headingAt(track: Track, i: number): number {
   const a = track.points[wrap(i, n)];
   const b = track.points[wrap(i + 1, n)];
   return Math.atan2(b.y - a.y, b.x - a.x);
+}
+
+/** Two-wide staggered grid slot behind the start line for racer i. */
+export function gridSlot(track: Track, i: number): { x: number; y: number; heading: number; idx: number } {
+  const n = track.points.length;
+  const row = Math.floor(i / 2);
+  const side = i % 2 === 0 ? -1 : 1;
+  const idx = wrap(-GRID.firstBack - row * GRID.rowGap - (i % 2) * GRID.stagger, n);
+  const p = track.points[idx];
+  const h = headingAt(track, idx);
+  const off = side * track.halfWidth * GRID.sideFrac;
+  return { x: p.x - Math.sin(h) * off, y: p.y + Math.cos(h) * off, heading: h, idx };
 }

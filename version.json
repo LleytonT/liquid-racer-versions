@@ -1,11 +1,13 @@
 {
-  "id": "root",
-  "title": "Oval",
-  "summary": "The bare starting point: one oval, one car, four racers, three laps.",
-  "parent": null,
-  "requestedBy": null,
-  "request": null,
-  "play": "https://liquid-racer.vercel.app/n/root",
+  "id": "5fjf29vb",
+  "game": "racer",
+  "kernel": "c4f998c39c87",
+  "title": "Chalk Starting Grid",
+  "summary": "Each car now lines up in its own chalk-drawn grid box behind the start line.",
+  "parent": "root",
+  "requestedBy": "lleyton",
+  "request": "Paint the grid slot boxes in chalk behind the start line so you can see where each car lines up.",
+  "play": "https://liquid-racer.vercel.app/n/5fjf29vb",
   "gates": [
     {
       "id": "contract",
@@ -33,9 +35,9 @@
     },
     {
       "id": "close-racing",
-      "pass": false,
+      "pass": true,
       "value": 1.7,
-      "target": ">= 2 per race on average"
+      "target": ">= 2 per race on average, or no lower than the parent's 1.7"
     },
     {
       "id": "race-length",
@@ -46,9 +48,19 @@
     {
       "id": "performance",
       "pass": true,
-      "value": 0.009,
+      "value": 0.006,
       "target": "<= 1 ms"
     }
   ],
-  "spec": null
+  "spec": {
+    "spec": "Draw a starting grid on the track behind the start/finish line. There is one chalk rectangle (open box, cream, slightly thick lines) for each of the four racers, in staggered rows of two, in the lanes where the cars actually begin. Boxes sit under the cars and match the real start positions, so each car sits inside its own box at the race start. Use only palette colours (Chalk on Tarmac). The boxes are decoration only: they do not change physics, bot behaviour, starting positions, scoring or timing. Don't redraw the lap, position or timer. The grid stays on the track as scenery after the start, and must not cover the cars or the start line. Not included: grid numbers, text labels, or any change to the order cars start in.",
+    "design": "# Design: Chalk Starting Grid\n\nRender-only change. Physics, bots and observations are untouched.\n\n## 1. Mechanics\nNo gameplay change. The boxes are scenery.\n\n**Slot geometry.** Today `init` in `game/index.ts` computes each car's start with inline numbers. Move that maths into one shared helper, `gridSlot(track, i)`, in `game/track.ts`. It returns `{x, y, heading}`. `init` and `render` both call it, so the boxes cannot drift from the real start positions.\n\n- Keep the arithmetic exactly as it is now, so the floats are identical and results match the parent.\n- Today's formula: `row = floor(i/2)`, `side = i%2==0 ? -1 : 1`, `idx = wrap(-3 - row*3 - (i%2), n)`, `off = side*halfWidth*0.4`, `x = p.x - sin(h)*off`, `y = p.y + cos(h)*off`.\n- Replace the literals with the new tunables below. Their values equal today's literals, which keeps behaviour unchanged.\n\n**Tunables.** Add `GRID` to `game/tuning.ts`:\n```\nexport const GRID = {\n  firstBack: 3,    // centre-line steps behind the line for row 0\n  rowGap: 3,       // steps between rows\n  stagger: 1,      // extra steps for the right-hand slot\n  sideFrac: 0.4,   // lateral offset as a fraction of halfWidth\n  boxLength: 50,   // world units along the track\n  boxWidth: 38,    // across the track\n  lineWidth: 4,    // chalk line, slightly thicker than the 3px centre line\n};\n```\n`init` uses `idx = wrap(-firstBack - row*rowGap - (i%2)*stagger, n)` and `off = side*halfWidth*sideFrac`.\n\n## 2. On screen\nIn `render`, draw the boxes after the dashed centre line and before the start/finish strip. The cars are drawn later, so they sit on top of the boxes.\n\n- For each `i < s.cars.length`, get `gridSlot(s.track, i)`.\n- Then `save`, `translate(x, y)`, `rotate(heading)`.\n- Set `strokeStyle = PALETTE.chalk`, `lineWidth = GRID.lineWidth`, `setLineDash([])`, `lineCap = \"butt\"`.\n- Draw an open U with the opening toward the start line (+x in local space):\n  `moveTo(L/2, -W/2)`, `lineTo(-L/2, -W/2)`, `lineTo(-L/2, W/2)`, `lineTo(L/2, W/2)`, then `stroke`.\n- `restore`.\n- Use a solid cream stroke with no fill, gradient, shadow or text.\n\n**Clearance (worked from the numbers).**\n\n| Check | Result |\n|---|---|\n| Start strip | Spans ±15 units along the track from the line. The nearest box front sits about 35 units behind the line, so the line stays visible. |\n| Boxes vs each other | Left and right boxes are separated sideways (lateral spans 17–57 units each side of the centre line). Rows have an 8-unit gap. |\n| Track edge | Boxes stay inside the tarmac (halfWidth 92). |\n| Cars | The car body (37.5 × 20) fits inside a 50 × 38 box. |\n\n## 3. Checks\n- **Replay and determinism:** `step`, `observe` and `status` are untouched. `init` produces bit-identical positions because it uses the same arithmetic, and `render` only reads the state. Results therefore match the parent for the same seed.\n- **Bots:** `ahead`, `rivals` and `actionReady` are unchanged (`actionReady` stays `false`). Bots can't see or interact with the boxes, so the beginner-finishes, expert-beats-beginner and lead-swap checks are unaffected.\n- **State:** nothing new is stored, so the state still survives JSON.stringify.\n- **Style:** palette chalk only, no shadows or gradients.\n\n## 4. Files\n- `game/tuning.ts`: add `GRID`.\n- `game/track.ts`: add and export `gridSlot(track, i)`. Import `GRID` from `./tuning`, which `track.ts` already imports from.\n- `game/index.ts`: `init` calls `gridSlot` for `x`, `y`, `heading` and `idx`. `idx` must still be the wrapped index, so have `gridSlot` also return `idx`.\n- `game/render.ts`: import `gridSlot` and `GRID`, and add the chalk-box block described above.\n\nAfter the change, run `sh check.sh`.",
+    "acceptance": [
+      "Four chalk-outlined slot boxes are visible behind the start line when a race begins.",
+      "At the race start each car sits inside one box, with one car per box.",
+      "Boxes use only palette colours and chalk-style lines, with no gradients or shadows.",
+      "Race results are identical to the parent for the same seed, and the replay check still passes.",
+      "The boxes are drawn under the cars and the kernel's lap, position and timer, and don't hide the start line."
+    ]
+  }
 }

@@ -1,7 +1,7 @@
 import type { View } from "../kernel/api";
 import type { State } from "./index";
-import { headingAt } from "./track";
-import { PALETTE, TUNING } from "./tuning";
+import { gridSlot, headingAt } from "./track";
+import { GRID, PALETTE, TUNING } from "./tuning";
 
 /** World units visible across the canvas width. */
 const VIEW_WIDTH = 1100;
@@ -54,6 +54,26 @@ export function render(ctx: CanvasRenderingContext2D, s: State, view: View): voi
   ctx.lineWidth = 3;
   ctx.stroke();
   ctx.setLineDash([]);
+
+  // Chalk starting grid: an open box per slot, mouth toward the line.
+  const bl = GRID.boxLength / 2;
+  const bw = GRID.boxWidth / 2;
+  ctx.strokeStyle = PALETTE.chalk;
+  ctx.lineWidth = GRID.lineWidth;
+  ctx.lineCap = "butt";
+  for (let i = 0; i < s.cars.length; i++) {
+    const g = gridSlot(s.track, i);
+    ctx.save();
+    ctx.translate(g.x, g.y);
+    ctx.rotate(g.heading);
+    ctx.beginPath();
+    ctx.moveTo(bl, -bw);
+    ctx.lineTo(-bl, -bw);
+    ctx.lineTo(-bl, bw);
+    ctx.lineTo(bl, bw);
+    ctx.stroke();
+    ctx.restore();
+  }
 
   // Start/finish: a chalk checker strip across the track at index 0.
   const p0 = points[0];

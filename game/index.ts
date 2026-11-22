@@ -10,7 +10,7 @@ import {
   type Vec,
 } from "../kernel/api";
 import { render } from "./render";
-import { buildTrack, headingAt, nearestIndex, wrap, type Track } from "./track";
+import { buildTrack, gridSlot, nearestIndex, wrap, type Track } from "./track";
 import { TUNING } from "./tuning";
 
 export interface Car {
@@ -43,21 +43,14 @@ function progressOf(s: State, c: Car): number {
 
 function init(_seed: number, racers: RacerSetup[]): State {
   const track = buildTrack();
-  const n = track.points.length;
   const cars: Car[] = racers.map((r, i) => {
-    // Two-wide staggered grid behind the start line.
-    const row = Math.floor(i / 2);
-    const side = i % 2 === 0 ? -1 : 1;
-    const idx = wrap(-3 - row * 3 - (i % 2), n);
-    const p = track.points[idx];
-    const h = headingAt(track, idx);
-    const off = side * track.halfWidth * 0.4;
+    const { x, y, heading, idx } = gridSlot(track, i);
     return {
       name: r.name,
       human: r.human,
-      x: p.x - Math.sin(h) * off,
-      y: p.y + Math.cos(h) * off,
-      heading: h,
+      x,
+      y,
+      heading,
       speed: 0,
       idx,
       lap: -1,
